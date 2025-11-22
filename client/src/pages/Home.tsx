@@ -29,12 +29,9 @@ export default function Home() {
             </span>
           </div>
           <div className="flex items-center gap-4">
-            <Button variant="ghost" size="sm" onClick={() => setLocation("/pricing")}>
-              Pricing
-            </Button>
             {isAuthenticated ? (
               <>
-                <span className="text-sm text-muted-foreground hidden md:inline">
+                <span className="text-sm text-muted-foreground">
                   Welcome, {user?.name || user?.email}
                 </span>
                 <Button variant="outline" size="sm" onClick={() => logout()}>

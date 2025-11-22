@@ -1,6 +1,24 @@
 import { eq } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
-import { InsertUser, users } from "../drizzle/schema";
+import { 
+  InsertUser, 
+  users, 
+  brands, 
+  Brand, 
+  InsertBrand,
+  brandAssets,
+  BrandAsset,
+  InsertBrandAsset,
+  brandInputs,
+  BrandInput,
+  InsertBrandInput,
+  generatedContent,
+  GeneratedContent,
+  InsertGeneratedContent,
+  conversations,
+  Conversation,
+  InsertConversation
+} from "../drizzle/schema";
 import { ENV } from './_core/env';
 
 let _db: ReturnType<typeof drizzle> | null = null;
@@ -89,4 +107,144 @@ export async function getUserByOpenId(openId: string) {
   return result.length > 0 ? result[0] : undefined;
 }
 
-// TODO: add feature queries here as your schema grows.
+// Brand management functions
+export async function createBrand(brand: InsertBrand): Promise<Brand> {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  const result = await db.insert(brands).values(brand);
+  const insertedId = Number(result[0].insertId);
+  
+  const inserted = await db.select().from(brands).where(eq(brands.id, insertedId)).limit(1);
+  return inserted[0]!;
+}
+
+export async function getBrandsByUserId(userId: number): Promise<Brand[]> {
+  const db = await getDb();
+  if (!db) return [];
+
+  return await db.select().from(brands).where(eq(brands.userId, userId));
+}
+
+export async function getBrandById(brandId: number): Promise<Brand | undefined> {
+  const db = await getDb();
+  if (!db) return undefined;
+
+  const result = await db.select().from(brands).where(eq(brands.id, brandId)).limit(1);
+  return result[0];
+}
+
+// Brand assets functions
+export async function createBrandAsset(asset: InsertBrandAsset): Promise<BrandAsset> {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  const result = await db.insert(brandAssets).values(asset);
+  const insertedId = Number(result[0].insertId);
+  
+  const inserted = await db.select().from(brandAssets).where(eq(brandAssets.id, insertedId)).limit(1);
+  return inserted[0]!;
+}
+
+export async function getBrandAssetsByBrandId(brandId: number): Promise<BrandAsset[]> {
+  const db = await getDb();
+  if (!db) return [];
+
+  return await db.select().from(brandAssets).where(eq(brandAssets.brandId, brandId));
+}
+
+// Brand inputs (freemium form) functions
+export async function createBrandInput(input: InsertBrandInput): Promise<BrandInput> {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  const result = await db.insert(brandInputs).values(input);
+  const insertedId = Number(result[0].insertId);
+  
+  const inserted = await db.select().from(brandInputs).where(eq(brandInputs.id, insertedId)).limit(1);
+  return inserted[0]!;
+}
+
+export async function getBrandInputsByUserId(userId: number): Promise<BrandInput[]> {
+  const db = await getDb();
+  if (!db) return [];
+
+  return await db.select().from(brandInputs).where(eq(brandInputs.userId, userId));
+}
+
+export async function getBrandInputById(inputId: number): Promise<BrandInput | undefined> {
+  const db = await getDb();
+  if (!db) return undefined;
+
+  const result = await db.select().from(brandInputs).where(eq(brandInputs.id, inputId)).limit(1);
+  return result[0];
+}
+
+// Generated content functions
+export async function createGeneratedContent(content: InsertGeneratedContent): Promise<GeneratedContent> {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  const result = await db.insert(generatedContent).values(content);
+  const insertedId = Number(result[0].insertId);
+  
+  const inserted = await db.select().from(generatedContent).where(eq(generatedContent.id, insertedId)).limit(1);
+  return inserted[0]!;
+}
+
+export async function getGeneratedContentByInputId(inputId: number): Promise<GeneratedContent[]> {
+  const db = await getDb();
+  if (!db) return [];
+
+  return await db.select().from(generatedContent).where(eq(generatedContent.inputId, inputId));
+}
+
+export async function updateContentFeedback(
+  contentId: number, 
+  feedbackScore: number, 
+  feedbackText?: string
+): Promise<void> {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  await db
+    .update(generatedContent)
+    .set({ 
+      userFeedbackScore: feedbackScore,
+      userFeedbackText: feedbackText,
+      updatedAt: new Date()
+    })
+    .where(eq(generatedContent.id, contentId));
+}
+
+// Conversation functions
+export async function createConversation(conversation: InsertConversation): Promise<Conversation> {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  const result = await db.insert(conversations).values(conversation);
+  const insertedId = Number(result[0].insertId);
+  
+  const inserted = await db.select().from(conversations).where(eq(conversations.id, insertedId)).limit(1);
+  return inserted[0]!;
+}
+
+export async function getConversationsByUserId(userId: number): Promise<Conversation[]> {
+  const db = await getDb();
+  if (!db) return [];
+
+  return await db.select().from(conversations).where(eq(conversations.userId, userId));
+}
+
+export async function updateConversation(conversationId: number, messageLog: string): Promise<void> {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  await db
+    .update(conversations)
+    .set({ 
+      messageLog,
+      updatedAt: new Date()
+    })
+    .where(eq(conversations.id, conversationId));
+}

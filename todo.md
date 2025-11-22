@@ -37,3 +37,15 @@
 - [ ] Content export features
 - [ ] Multi-language support expansion
 - [ ] Custom model fine-tuning with collected data
+
+## Stripe Payment Integration
+- [x] Add Stripe feature to web application using webdev_add_feature
+- [x] Request Stripe API keys from user (auto-configured)
+- [x] Design subscription plans (Free, Pro, Enterprise)
+- [x] Create pricing page UI
+- [x] Implement checkout flow for subscription purchase
+- [x] Add webhook handlers for payment events
+- [x] Create user subscription status management
+- [ ] Add payment history page (future enhancement)
+- [ ] Implement access control based on subscription tier (future enhancement)
+- [x] Test payment flow end-to-end

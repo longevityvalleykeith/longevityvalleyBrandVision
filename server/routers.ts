@@ -5,6 +5,7 @@ import { publicProcedure, protectedProcedure, router } from "./_core/trpc";
 import { z } from "zod";
 import * as db from "./db";
 import { generateMandarinContent, generateContentWithVisualContext } from "./aiContentGenerator";
+import { createCheckoutSession, createPortalSession } from "./stripe";
 
 export const appRouter = router({
     // if you need to use socket.io, read and register route in server/_core/index.ts, all api should start with '/api/' so that the gateway can route correctly
@@ -154,6 +155,51 @@ export const appRouter = router({
           input.text
         );
         return { success: true };
+      }),
+  }),
+
+  // Stripe subscription management
+  subscription: router({
+    createCheckout: protectedProcedure
+      .input(z.object({
+        planId: z.enum(["pro", "enterprise"]),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        const origin = ctx.req.headers.origin || "https://localhost:3000";
+        
+        const { url, sessionId } = await createCheckoutSession({
+          userId: ctx.user.id,
+          userEmail: ctx.user.email || "",
+          userName: ctx.user.name || undefined,
+          planId: input.planId,
+          origin,
+        });
+
+        return { checkoutUrl: url, sessionId };
+      }),
+
+    createPortal: protectedProcedure
+      .mutation(async ({ ctx }) => {
+        if (!ctx.user.stripeCustomerId) {
+          throw new Error("No Stripe customer ID found");
+        }
+
+        const origin = ctx.req.headers.origin || "https://localhost:3000";
+        const { url } = await createPortalSession({
+          customerId: ctx.user.stripeCustomerId,
+          origin,
+        });
+
+        return { portalUrl: url };
+      }),
+
+    getStatus: protectedProcedure
+      .query(({ ctx }) => {
+        return {
+          plan: ctx.user.subscriptionPlan || "free",
+          status: ctx.user.subscriptionStatus,
+          endsAt: ctx.user.subscriptionEndsAt,
+        };
       }),
   }),
 

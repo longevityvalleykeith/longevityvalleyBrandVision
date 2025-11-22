@@ -7,6 +7,8 @@ import { ThemeProvider } from "./contexts/ThemeContext";
 import Home from "./pages/Home";
 import ContentGenerator from "./pages/ContentGenerator";
 import Results from "./pages/Results";
+import Pricing from "./pages/Pricing";
+import SubscriptionSuccess from "./pages/SubscriptionSuccess";
 
 function Router() {
   // make sure to consider if you need authentication for certain routes
@@ -15,6 +17,8 @@ function Router() {
       <Route path={"/"} component={Home} />
       <Route path="/generate" component={ContentGenerator} />
       <Route path="/results/:inputId" component={Results} />
+      <Route path="/pricing" component={Pricing} />
+      <Route path="/subscription/success" component={SubscriptionSuccess} />
       <Route path={"/404"} component={NotFound} />
       {/* Final fallback route */}
       <Route component={NotFound} />

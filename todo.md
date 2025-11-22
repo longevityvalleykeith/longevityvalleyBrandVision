@@ -37,3 +37,14 @@
 - [ ] Content export features
 - [ ] Multi-language support expansion
 - [ ] Custom model fine-tuning with collected data
+
+## Critical Bug Fixes (URGENT)
+- [x] Rollback to checkpoint 1828b81 (before Stripe broke UI)
+- [x] Identify root cause of "Invalid content format from DeepSeek" error
+- [x] Remove response_format: json_object constraint from DeepSeek API call
+- [x] Improve system prompt to explicitly request JSON array format
+- [x] Add markdown code block stripping logic for robust parsing
+- [x] Add comprehensive error logging for debugging
+- [x] Test content generation end-to-end with real user input
+- [x] Verify all 5 content pieces generate successfully
+- [ ] Save checkpoint with working content generation

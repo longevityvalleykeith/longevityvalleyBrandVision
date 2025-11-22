@@ -15,6 +15,20 @@
       "when": 1763820206879,
       "tag": "0001_rare_lily_hollister",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "5",
+      "when": 1763822427875,
+      "tag": "0002_happy_rage",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "5",
+      "when": 1763853342559,
+      "tag": "0003_melodic_mathemanic",
+      "breakpoints": true
     }
   ]
 }

@@ -54,16 +54,30 @@ You will generate 5 distinct pieces of content, each with:
 2. A Mandarin caption (50-150 characters, optimized for WeChat/Douyin)
 3. An English explanation of the cultural strategy and why this approach works
 
-Format your response as a JSON array with 5 objects, each containing: storyboardMandarin, captionMandarin, explanationEnglish`
+CRITICAL: You MUST respond with ONLY a valid JSON array containing exactly 5 objects. No markdown, no code blocks, no additional text. Just the raw JSON array.
+
+Each object must have these exact keys:
+- storyboardMandarin: string (visual description in Mandarin)
+- captionMandarin: string (50-150 character caption in Mandarin)
+- explanationEnglish: string (cultural strategy explanation in English)
+
+Example format:
+[
+  {
+    "storyboardMandarin": "...",
+    "captionMandarin": "...",
+    "explanationEnglish": "..."
+  },
+  ... (4 more objects)
+]`
           },
           {
             role: "user",
             content: prompt
           }
         ],
-        temperature: 0.8,
-        max_tokens: 4000,
-        response_format: { type: "json_object" }
+        temperature: 0.7,
+        max_tokens: 4000
       }),
     });
 
@@ -76,11 +90,21 @@ Format your response as a JSON array with 5 objects, each containing: storyboard
     const contentText = data.choices[0]?.message?.content;
     
     if (!contentText) {
+      console.error("DeepSeek response structure:", JSON.stringify(data, null, 2));
       throw new Error("No content generated from DeepSeek");
     }
+    
+    console.log("Raw DeepSeek response:", contentText.substring(0, 500));
 
-    // Parse the JSON response
-    const parsedContent = JSON.parse(contentText);
+    // Parse the JSON response, stripping any markdown code blocks
+    let cleanedContent = contentText.trim();
+    
+    // Remove markdown code blocks if present
+    if (cleanedContent.startsWith('```')) {
+      cleanedContent = cleanedContent.replace(/^```(?:json)?\n?/, '').replace(/\n?```$/, '').trim();
+    }
+    
+    const parsedContent = JSON.parse(cleanedContent);
     
     // Handle both array and object with "content" key formats
     const contentArray = Array.isArray(parsedContent) 
@@ -88,7 +112,9 @@ Format your response as a JSON array with 5 objects, each containing: storyboard
       : (parsedContent.content || parsedContent.contents || []);
 
     if (!Array.isArray(contentArray) || contentArray.length === 0) {
-      throw new Error("Invalid content format from DeepSeek");
+      console.error("Parsed content structure:", JSON.stringify(parsedContent, null, 2));
+      console.error("Content array:", contentArray);
+      throw new Error(`Invalid content format from DeepSeek. Expected array, got: ${typeof parsedContent}`);
     }
 
     return contentArray.slice(0, 5); // Ensure we return exactly 5 pieces

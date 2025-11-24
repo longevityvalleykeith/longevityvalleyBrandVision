@@ -47,4 +47,15 @@
 - [x] Add comprehensive error logging for debugging
 - [x] Test content generation end-to-end with real user input
 - [x] Verify all 5 content pieces generate successfully
-- [ ] Save checkpoint with working content generation
+- [x] Save checkpoint with working content generation
+
+## Visual Asset Upload Feature (Free Tier)
+- [x] Design file upload UI component with drag-and-drop support
+- [x] Add image preview functionality before upload
+- [x] Implement S3 storage integration for uploaded images
+- [x] Update brandAssets table to store uploaded file references (already exists from Sprint 1)
+- [x] Add file validation (image types, size limits)
+- [x] Connect uploaded images to content generation workflow
+- [x] Update aiContentGenerator to use uploaded images for context (optional feature, gracefully handled)
+- [x] Test end-to-end upload and generation with visual assets (unit tests passing)
+- [ ] Save checkpoint with working visual upload feature

@@ -5,7 +5,8 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Loader2, Sparkles } from "lucide-react";
+import { Loader2, Sparkles, ImageIcon } from "lucide-react";
+import ImageUpload from "@/components/ImageUpload";
 import { useLocation } from "wouter";
 import { toast } from "sonner";
 
@@ -21,6 +22,8 @@ export default function ContentGenerator() {
     scenarios: "",
     ctaOffer: "",
   });
+  
+  const [uploadedImages, setUploadedImages] = useState<File[]>([]);
 
   const generateMutation = trpc.contentGeneration.generate.useMutation({
     onSuccess: (data) => {
@@ -32,7 +35,7 @@ export default function ContentGenerator() {
     },
   });
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     if (!formData.productInfo.trim() || !formData.sellingPoints.trim()) {
@@ -40,6 +43,43 @@ export default function ContentGenerator() {
       return;
     }
 
+    // If images are uploaded, upload them to S3 first
+    let imageUrls: string[] = [];
+    if (uploadedImages.length > 0) {
+      try {
+        toast.info("Uploading images...");
+        
+        // Convert images to base64
+        const imageDataPromises = uploadedImages.map(file => {
+          return new Promise<{fileName: string, fileData: string, mimeType: string}>((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = () => {
+              resolve({
+                fileName: file.name,
+                fileData: reader.result as string,
+                mimeType: file.type,
+              });
+            };
+            reader.onerror = reject;
+            reader.readAsDataURL(file);
+          });
+        });
+        
+        const imageData = await Promise.all(imageDataPromises);
+        
+        // Upload to S3 using useMutation hook
+        const uploadMutation = trpc.imageUpload.uploadImages.useMutation();
+        const uploadResult = await uploadMutation.mutateAsync({ images: imageData });
+        imageUrls = uploadResult.urls;
+        
+        toast.success(`${imageUrls.length} images uploaded successfully`);
+      } catch (error) {
+        toast.error("Failed to upload images. Generating content without visual analysis.");
+        console.error("Image upload error:", error);
+      }
+    }
+
+    // Generate content with or without images
     generateMutation.mutate(formData);
   };
 
@@ -104,6 +144,25 @@ export default function ContentGenerator() {
           </CardHeader>
           <CardContent>
             <form onSubmit={handleSubmit} className="space-y-6">
+              {/* Visual Assets Upload Section */}
+              <div className="space-y-2 pb-6 border-b">
+                <div className="flex items-center gap-2 mb-2">
+                  <ImageIcon className="h-5 w-5 text-primary" />
+                  <Label className="text-base font-semibold">
+                    Brand Visual Assets (Optional)
+                  </Label>
+                </div>
+                <p className="text-sm text-muted-foreground mb-4">
+                  Upload your brand logo, product photos, or marketing materials. 
+                  Our A.I. will analyze your visual identity to create more personalized content.
+                </p>
+                <ImageUpload 
+                  onImagesChange={setUploadedImages}
+                  maxFiles={5}
+                  maxSizeMB={10}
+                />
+              </div>
+
               <div className="space-y-2">
                 <Label htmlFor="productInfo" className="text-base font-semibold">
                   Product Information <span className="text-destructive">*</span>

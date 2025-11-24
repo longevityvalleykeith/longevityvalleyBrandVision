@@ -5,6 +5,7 @@ import { publicProcedure, protectedProcedure, router } from "./_core/trpc";
 import { z } from "zod";
 import * as db from "./db";
 import { generateMandarinContent, generateContentWithVisualContext } from "./aiContentGenerator";
+import { uploadMultipleImages } from "./imageUpload";
 
 export const appRouter = router({
     // if you need to use socket.io, read and register route in server/_core/index.ts, all api should start with '/api/' so that the gateway can route correctly
@@ -69,6 +70,22 @@ export const appRouter = router({
       .input(z.object({ brandId: z.number() }))
       .query(async ({ input }) => {
         return await db.getBrandAssetsByBrandId(input.brandId);
+      }),
+  }),
+
+  // Image upload router
+  imageUpload: router({
+    uploadImages: protectedProcedure
+      .input(z.object({
+        images: z.array(z.object({
+          fileName: z.string(),
+          fileData: z.string(), // base64
+          mimeType: z.string(),
+        })),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        const urls = await uploadMultipleImages(input.images, ctx.user.id);
+        return { urls };
       }),
   }),
 

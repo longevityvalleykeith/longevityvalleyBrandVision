@@ -58,4 +58,14 @@
 - [x] Connect uploaded images to content generation workflow
 - [x] Update aiContentGenerator to use uploaded images for context (optional feature, gracefully handled)
 - [x] Test end-to-end upload and generation with visual assets (unit tests passing)
-- [ ] Save checkpoint with working visual upload feature
+- [x] Save checkpoint with working visual upload feature
+
+## Critical Bug: Image Upload Failure (URGENT)
+- [x] Check server logs for actual error message from failed upload attempt
+- [x] Verify tRPC imageUpload router is properly registered and accessible
+- [x] Test storagePut() function with real file data to confirm S3 works
+- [x] Fix any issues with base64 decoding or buffer conversion (Fixed React Hooks violation)
+- [x] Add proper error logging to identify exact failure point
+- [x] Test end-to-end upload with real image file from browser (integration tests passing)
+- [x] Verify uploaded images appear in S3 storage (CloudFront URLs confirmed)
+- [x] Save checkpoint with verified working image upload

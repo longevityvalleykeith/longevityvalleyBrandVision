@@ -25,6 +25,8 @@ export default function ContentGenerator() {
   
   const [uploadedImages, setUploadedImages] = useState<File[]>([]);
 
+  const uploadMutation = trpc.imageUpload.uploadImages.useMutation();
+
   const generateMutation = trpc.contentGeneration.generate.useMutation({
     onSuccess: (data) => {
       toast.success("Content generated successfully!");
@@ -67,8 +69,7 @@ export default function ContentGenerator() {
         
         const imageData = await Promise.all(imageDataPromises);
         
-        // Upload to S3 using useMutation hook
-        const uploadMutation = trpc.imageUpload.uploadImages.useMutation();
+        // Upload to S3
         const uploadResult = await uploadMutation.mutateAsync({ images: imageData });
         imageUrls = uploadResult.urls;
         

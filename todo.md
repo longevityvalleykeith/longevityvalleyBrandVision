@@ -69,3 +69,14 @@
 - [x] Test end-to-end upload with real image file from browser (integration tests passing)
 - [x] Verify uploaded images appear in S3 storage (CloudFront URLs confirmed)
 - [x] Save checkpoint with verified working image upload
+
+## Cloudflare R2 Storage Integration (CRITICAL)
+- [x] Request Cloudflare R2 credentials from user (Account ID, Access Key ID, Secret Access Key, Bucket Name, Public Domain)
+- [x] Replace Manus built-in storage with Cloudflare R2 S3-compatible API
+- [x] Configure R2 endpoint and authentication in storage.ts
+- [x] Set up custom domain for CDN delivery (www.longevityvalley.ai confirmed working)
+- [x] Update CORS settings on R2 bucket for browser uploads (user confirmed configured)
+- [x] Test real image upload to R2 bucket (E2E tests passing - both single and multiple uploads)
+- [x] Verify images are accessible via Cloudflare CDN domain (confirmed at www.longevityvalley.ai)
+- [x] Update database to store R2 URLs instead of Manus storage URLs (storage.ts replaced with R2 implementation)
+- [ ] Save checkpoint with verified working R2 integration

@@ -1,4 +1,4 @@
-import { int, mysqlEnum, mysqlTable, text, timestamp, varchar, boolean } from "drizzle-orm/mysql-core";
+import { int, mysqlEnum, mysqlTable, text, timestamp, varchar, boolean, decimal } from "drizzle-orm/mysql-core";
 
 /**
  * Core user table backing auth flow.
@@ -111,3 +111,80 @@ export const conversations = mysqlTable("conversations", {
 
 export type Conversation = typeof conversations.$inferSelect;
 export type InsertConversation = typeof conversations.$inferInsert;
+
+/**
+ * Brand Vision Pipeline - Job Queue
+ * Tracks asynchronous vision analysis and content generation jobs
+ * Status flow: pending → gemini_analyzing → deepseek_generating → complete (or error)
+ */
+export const visionJobs = mysqlTable("visionJobs", {
+  id: int("id").autoincrement().primaryKey(),
+  userId: int("userId").notNull(),
+  imageUrl: text("imageUrl").notNull(),
+  imageContext: text("imageContext"),
+  analysisPurpose: text("analysisPurpose").notNull(),
+  outputFormat: varchar("outputFormat", { length: 50 }).notNull(),
+  creativityLevel: decimal("creativityLevel", { precision: 2, scale: 1 }).default("1.0").notNull(),
+  additionalInstructions: text("additionalInstructions"),
+  status: mysqlEnum("status", ["pending", "gemini_analyzing", "deepseek_generating", "complete", "error"]).default("pending").notNull(),
+  progress: int("progress").default(0).notNull(),
+  geminOutput: text("geminOutput"),
+  deepseekOutput: text("deepseekOutput"),
+  geminAnalyzedAt: timestamp("geminAnalyzedAt"),
+  deepseekGeneratedAt: timestamp("deepseekGeneratedAt"),
+  completedAt: timestamp("completedAt"),
+  errorMessage: text("errorMessage"),
+  errorStage: varchar("errorStage", { length: 50 }),
+  retryCount: int("retryCount").default(0).notNull(),
+  maxRetries: int("maxRetries").default(3).notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type VisionJob = typeof visionJobs.$inferSelect;
+export type InsertVisionJob = typeof visionJobs.$inferInsert;
+
+/**
+ * Brand Vision Pipeline - Job Sessions
+ * Tracks active SSE connections for real-time progress updates
+ */
+export const visionJobSessions = mysqlTable("visionJobSessions", {
+  id: int("id").autoincrement().primaryKey(),
+  jobId: int("jobId").notNull(),
+  userId: int("userId").notNull(),
+  sessionId: varchar("sessionId", { length: 128 }).notNull().unique(),
+  isActive: boolean("isActive").default(true).notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  expiresAt: timestamp("expiresAt"),
+});
+
+export type VisionJobSession = typeof visionJobSessions.$inferSelect;
+export type InsertVisionJobSession = typeof visionJobSessions.$inferInsert;
+
+/**
+ * Brand Vision Pipeline - Job Outputs
+ * Stores structured outputs for dataset training and future analysis
+ */
+export const visionJobOutputs = mysqlTable("visionJobOutputs", {
+  id: int("id").autoincrement().primaryKey(),
+  jobId: int("jobId").notNull(),
+  userId: int("userId").notNull(),
+  colors_primary: text("colors_primary"),
+  colors_secondary: text("colors_secondary"),
+  colors_description: text("colors_description"),
+  mood: varchar("mood", { length: 255 }),
+  tone: varchar("tone", { length: 255 }),
+  composition_layout: text("composition_layout"),
+  brand_personality: text("brand_personality"),
+  perceived_industry: varchar("perceived_industry", { length: 255 }),
+  target_audience: text("target_audience"),
+  content_pieces: text("content_pieces"),
+  isTrainingData: boolean("isTrainingData").default(true).notNull(),
+  userRating: int("userRating"),
+  userFeedback: text("userFeedback"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type VisionJobOutput = typeof visionJobOutputs.$inferSelect;
+export type InsertVisionJobOutput = typeof visionJobOutputs.$inferInsert;

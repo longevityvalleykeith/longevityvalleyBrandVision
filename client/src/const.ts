@@ -19,3 +19,14 @@ export const getLoginUrl = () => {
 
   return url.toString();
 };
+
+// Design Tokens - Longevity Valley Brand Colors
+export const DESIGN_TOKENS = {
+  lvNavy: "#0B3B4F",
+  lvTeal: "#14B8A6",
+  lvSoftMint: "#F0FDFA",
+  errorRed: "#EF4444",
+  success: "#10B981",
+  warning: "#F59E0B",
+  info: "#3B82F6",
+};

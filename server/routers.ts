@@ -208,6 +208,43 @@ export const appRouter = router({
         return { success: true };
       }),
   }),
+
+  visionPipeline: router({
+    createJob: protectedProcedure
+      .input(z.object({
+        imageUrl: z.string(),
+        analysisPurpose: z.string(),
+        imageContext: z.string().optional(),
+        additionalInstructions: z.string().optional(),
+        creativityLevel: z.number().default(1.0),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        const job = await db.createVisionJob(
+          ctx.user.id,
+          input.imageUrl,
+          input.analysisPurpose,
+          "detailed_analysis",
+          input.creativityLevel,
+          input.imageContext,
+          input.additionalInstructions
+        );
+        return { jobId: job.id, status: job.status };
+      }),
+
+    getJobStatus: protectedProcedure
+      .input(z.object({ jobId: z.number() }))
+      .query(async ({ ctx, input }) => {
+        const job = await db.getVisionJobById(input.jobId);
+        if (!job) throw new Error("Job not found");
+        if (job.userId !== ctx.user.id) throw new Error("Unauthorized");
+        return job;
+      }),
+
+    getJobHistory: protectedProcedure
+      .query(async ({ ctx }) => {
+        return await db.getUserVisionJobs(ctx.user.id);
+      }),
+  }),
 });
 
 export type AppRouter = typeof appRouter;

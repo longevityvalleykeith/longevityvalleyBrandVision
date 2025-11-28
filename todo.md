@@ -80,3 +80,32 @@
 - [x] Verify images are accessible via Cloudflare CDN domain (confirmed at www.longevityvalley.ai)
 - [x] Update database to store R2 URLs instead of Manus storage URLs (storage.ts replaced with R2 implementation)
 - [x] Save checkpoint with verified working R2 integration
+
+## Brand Vision Pipeline Pro Feature (CRITICAL - Revenue Driver)
+- [x] Conduct viability assessment for database-backed queue + SSE + Gemini+DeepSeek pipeline
+- [x] Design database schema for job queue (status, progress, errors, outputs)
+- [x] Implement Drizzle-based job queue with polling mechanism
+  - [ ] Add visionJobs, visionJobSessions, visionJobOutputs tables to drizzle/schema.ts
+  - [ ] Run pnpm db:push to migrate schema
+  - [ ] Create database helper functions in server/db.ts (createVisionJob, getNextPendingVisionJob, updateVisionJobStatus, completeVisionJob)
+  - [ ] Create visionJobWorker.ts with polling loop (2s interval)
+  - [ ] Integrate worker startup in server/_core/index.ts
+  - [ ] Create tRPC procedures: visionPipeline.createJob, visionPipeline.getJobStatus, visionPipeline.getJobHistory
+  - [ ] Test job creation and polling mechanism
+  - [ ] Verify database indexes for performance
+- [ ] Implement SSE endpoint for real-time progress streaming
+- [ ] Test Gemini 3 Pro vision analysis on brand images
+- [ ] Test DeepSeek V3 text generation from Gemini output
+- [ ] Implement error handling (Gemini failure → skip DeepSeek)
+- [ ] Build Brand Vision Pipeline UI component with questionnaire
+- [ ] Implement real-time progress display with status indicators
+- [ ] Test end-to-end pipeline with sample images
+- [ ] Implement Pro subscription access control
+- [ ] Save checkpoint with working Brand Vision Pipeline
+
+## Phase 3B Refinement: Concurrency & UI (IN PROGRESS)
+- [ ] Step 1: Backend Concurrency - Refactor for 3 concurrent jobs
+- [ ] Step 2: Data Sanitization - Strip markdown from AI responses
+- [ ] Step 3: Frontend State Management - URL-addressable job progress
+- [ ] Step 4: UI Components - GranularProgressBar and VisionResultCard
+- [ ] Global Theming - Apply LV brand colors to all components

@@ -43,15 +43,24 @@
 }
 
 :root {
-  --primary: var(--color-blue-700);
-  --primary-foreground: var(--color-blue-50);
-  --sidebar-primary: var(--color-blue-600);
-  --sidebar-primary-foreground: var(--color-blue-50);
-  --chart-1: var(--color-blue-300);
-  --chart-2: var(--color-blue-500);
-  --chart-3: var(--color-blue-600);
-  --chart-4: var(--color-blue-700);
-  --chart-5: var(--color-blue-800);
+  /* Longevity Valley Brand Colors */
+  --lv-navy: #0B3B4F;
+  --lv-teal: #14B8A6;
+  --lv-mint: #F0FDFA;
+  --error-red: #EF4444;
+  
+  /* Primary colors use LV Navy */
+  --primary: #0B3B4F;
+  --primary-foreground: #FFFFFF;
+  --sidebar-primary: #0B3B4F;
+  --sidebar-primary-foreground: #FFFFFF;
+  
+  /* Accent colors use LV Teal */
+  --chart-1: #14B8A6;
+  --chart-2: #0D9488;
+  --chart-3: #0F766E;
+  --chart-4: #134E4A;
+  --chart-5: #164E63;
   --radius: 0.65rem;
   --background: oklch(1 0 0);
   --foreground: oklch(0.235 0.015 65);

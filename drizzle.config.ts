@@ -1,15 +1,19 @@
-import { defineConfig } from "drizzle-kit";
+import type { Config } from 'drizzle-kit';
+import * as dotenv from 'dotenv';
 
-const connectionString = process.env.DATABASE_URL;
-if (!connectionString) {
-  throw new Error("DATABASE_URL is required to run drizzle commands");
-}
+dotenv.config({ path: '.env.local' });
 
-export default defineConfig({
-  schema: "./drizzle/schema.ts",
-  out: "./drizzle",
-  dialect: "mysql",
+export default {
+  schema: './drizzle/schema.ts',
+  out: './drizzle/migrations',
+  dialect: 'mysql',
   dbCredentials: {
-    url: connectionString,
+    host: process.env.DATABASE_HOST || 'localhost',
+    port: parseInt(process.env.DATABASE_PORT || '3306', 10),
+    user: process.env.DATABASE_USER || 'root',
+    password: process.env.DATABASE_PASSWORD || '',
+    database: process.env.DATABASE_NAME || 'phase3',
   },
-});
+  verbose: true,
+  strict: true,
+} satisfies Config;

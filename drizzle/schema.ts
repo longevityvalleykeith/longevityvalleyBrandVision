@@ -188,3 +188,20 @@ export const visionJobOutputs = mysqlTable("visionJobOutputs", {
 
 export type VisionJobOutput = typeof visionJobOutputs.$inferSelect;
 export type InsertVisionJobOutput = typeof visionJobOutputs.$inferInsert;
+
+/**
+ * Brand Vision Pipeline - Video Prompts
+ * Stores the state and prompts for the Video Director Mode (Phase 3C)
+ */
+export const visionJobVideoPrompts = mysqlTable("visionJobVideoPrompts", {
+  id: int("id").autoincrement().primaryKey(),
+  jobId: int("jobId").notNull().unique(), // Foreign key to visionJobs
+  directorOutput: text("directorOutput").notNull(), // Stores the DirectorState object (JSON string)
+  status: mysqlEnum("status", ["reviewing", "production", "complete", "error"]).default("reviewing").notNull(),
+  remasteredImageUrl: text("remasteredImageUrl"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type VisionJobVideoPrompt = typeof visionJobVideoPrompts.$inferSelect;
+export type InsertVisionJobVideoPrompt = typeof visionJobVideoPrompts.$inferInsert;

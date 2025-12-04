@@ -1,0 +1,19 @@
+#!/usr/bin/env sh
+. "$(dirname -- "$0")/_/husky.sh"
+
+# ---------------------------------------------------
+# FIX: Load system paths to ensure 'npm' is found
+# ---------------------------------------------------
+# This ensures Husky sees /usr/local/bin (Intel) and
+# /opt/homebrew/bin (Apple Silicon) where Node usually lives.
+export PATH="/opt/homebrew/bin:/usr/local/bin:$PATH"
+
+# ---------------------------------------------------
+# OPTIONAL: NVM Support
+# If the above doesn't work and you use NVM, uncomment below:
+export NVM_DIR="$HOME/.nvm"
+[ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
+# ---------------------------------------------------
+
+# Your actual validation command
+npm run report:arch && npm run sentinel

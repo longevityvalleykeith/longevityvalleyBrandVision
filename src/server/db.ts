@@ -1,40 +1,32 @@
 /**
  * Phase 3 - Database Connection & Utilities
- * 
+ *
  * @module drizzle/db
- * @version 3.0.0
+ * @version 3.0.1 - Migrated to PostgreSQL
  */
 
-import { drizzle } from 'drizzle-orm/mysql2';
-import mysql from 'mysql2/promise';
-import * as schema from './schema';
+import { drizzle } from 'drizzle-orm/postgres-js';
+import postgres from 'postgres';
+import * as schema from '../types/schema';
 
 // =============================================================================
 // DATABASE CONNECTION
 // =============================================================================
 
-const poolConnection = mysql.createPool({
-  host: process.env.DATABASE_HOST || 'localhost',
-  port: parseInt(process.env.DATABASE_PORT || '3306', 10),
-  user: process.env.DATABASE_USER || 'root',
-  password: process.env.DATABASE_PASSWORD || '',
-  database: process.env.DATABASE_NAME || 'phase3',
-  
-  // Connection pool settings
-  waitForConnections: true,
-  connectionLimit: parseInt(process.env.DATABASE_POOL_SIZE || '10', 10),
-  queueLimit: 0,
-  
-  // Timeout settings
-  connectTimeout: 10000,
-  
-  // Enable prepared statements for security
-  namedPlaceholders: true,
+const connectionString = process.env.DATABASE_URL || '';
+
+if (!connectionString) {
+  throw new Error('DATABASE_URL environment variable is required');
+}
+
+const queryClient = postgres(connectionString, {
+  max: parseInt(process.env.DATABASE_POOL_SIZE || '10', 10),
+  idle_timeout: 20,
+  connect_timeout: 10,
 });
 
-export const db = drizzle(poolConnection, { 
-  schema, 
-  mode: 'default',
+export const db = drizzle(queryClient, {
+  schema,
   logger: process.env.NODE_ENV === 'development',
 });
 
@@ -44,9 +36,7 @@ export const db = drizzle(poolConnection, {
 
 export async function checkDatabaseConnection(): Promise<boolean> {
   try {
-    const connection = await poolConnection.getConnection();
-    await connection.ping();
-    connection.release();
+    await queryClient`SELECT 1 as health_check`;
     return true;
   } catch (error) {
     console.error('Database connection failed:', error);
@@ -77,7 +67,7 @@ export async function withTransaction<T>(
 // =============================================================================
 
 export async function closeDatabaseConnection(): Promise<void> {
-  await poolConnection.end();
+  await queryClient.end();
 }
 
 // =============================================================================
@@ -88,16 +78,17 @@ export async function closeDatabaseConnection(): Promise<void> {
  * Check if a table exists
  */
 export async function tableExists(tableName: string): Promise<boolean> {
-  const connection = await poolConnection.getConnection();
   try {
-    const [rows] = await connection.query(
-      `SELECT TABLE_NAME FROM information_schema.TABLES 
-       WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ?`,
-      [process.env.DATABASE_NAME, tableName]
-    );
-    return Array.isArray(rows) && rows.length > 0;
-  } finally {
-    connection.release();
+    const result = await queryClient`
+      SELECT tablename
+      FROM pg_catalog.pg_tables
+      WHERE schemaname = 'public'
+      AND tablename = ${tableName}
+    `;
+    return result.length > 0;
+  } catch (error) {
+    console.error(`Error checking if table ${tableName} exists:`, error);
+    return false;
   }
 }
 
@@ -105,14 +96,12 @@ export async function tableExists(tableName: string): Promise<boolean> {
  * Get table row count (for health checks)
  */
 export async function getTableCount(tableName: string): Promise<number> {
-  const connection = await poolConnection.getConnection();
   try {
-    const [rows] = await connection.query(
-      `SELECT COUNT(*) as count FROM ??`,
-      [tableName]
-    );
-    return (rows as any)[0]?.count || 0;
-  } finally {
-    connection.release();
+    // Use sql.unsafe for dynamic table names (safe in this context as it's only used for admin/health checks)
+    const result = await queryClient.unsafe(`SELECT COUNT(*) as count FROM ${tableName}`);
+    return Number(result[0]?.count || 0);
+  } catch (error) {
+    console.error(`Error getting count for table ${tableName}:`, error);
+    return 0;
   }
 }

@@ -1,17 +1,17 @@
 /**
  * Phase 3C - Director Router
- * 
+ *
  * API endpoints for Video Director Mode.
  * Handles storyboard initialization, refinement, and production approval.
- * 
+ *
  * @module server/routers/directorRouter
- * @version 3.0.0
+ * @version 3.0.1 - Migrated to PostgreSQL
  */
 
 import { TRPCError } from '@trpc/server';
 import { eq } from 'drizzle-orm';
-import { db } from '../../drizzle/db';
-import { visionJobs, visionJobVideoPrompts } from '../../drizzle/schema';
+import { db } from './db';
+import { visionJobs, visionJobVideoPrompts } from '../types/schema';
 import { 
   router, 
   protectedProcedure, 
@@ -156,7 +156,8 @@ export const directorRouter = router({
             status: 'reviewing',
             remasteredImageUrl: isRemastered ? workingImageUrl : null,
           })
-          .onDuplicateKeyUpdate({
+          .onConflictDoUpdate({
+            target: visionJobVideoPrompts.jobId,
             set: {
               directorOutput: initialState,
               status: 'reviewing',

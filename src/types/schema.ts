@@ -1,47 +1,47 @@
 /**
- * Phase 3 - Unified Database Schema
- * 
+ * Phase 3 - Unified Database Schema (PostgreSQL)
+ *
  * Single Source of Truth for all database tables.
  * Implements P0 Critical: Database indexes on foreign keys
- * 
- * @module drizzle/schema
- * @version 3.0.0
+ *
+ * @module types/schema
+ * @version 3.0.1 - Migrated to PostgreSQL
  */
 
 import {
-  mysqlTable,
-  bigint,
+  pgTable,
+  uuid,
   varchar,
-  json,
+  jsonb,
   timestamp,
   text,
-  int,
+  integer,
   index,
   boolean,
-  decimal,
+  numeric,
   uniqueIndex,
-} from 'drizzle-orm/mysql-core';
+} from 'drizzle-orm/pg-core';
 import { relations } from 'drizzle-orm';
 import type {
   GeminiAnalysisOutput,
   DirectorState,
   VisionJobStatus,
   VideoPromptStatus,
-} from '../types';
+} from './index';
 
 // =============================================================================
 // USERS TABLE (Reference for foreign keys)
 // =============================================================================
 
-export const users = mysqlTable('users', {
-  id: varchar('id', { length: 36 }).primaryKey(), // UUID or Clerk ID
+export const users = pgTable('users', {
+  id: uuid('id').primaryKey().defaultRandom(),
   email: varchar('email', { length: 255 }).notNull(),
   name: varchar('name', { length: 255 }),
   avatarUrl: text('avatar_url'),
   plan: varchar('plan', { length: 50 }).default('free').notNull(),
-  creditsRemaining: int('credits_remaining').default(10).notNull(),
+  creditsRemaining: integer('credits_remaining').default(10).notNull(),
   createdAt: timestamp('created_at').defaultNow().notNull(),
-  updatedAt: timestamp('updated_at').defaultNow().onUpdateNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
   deletedAt: timestamp('deleted_at'),
 }, (table) => ({
   // P0 Critical: Index on frequently queried columns
@@ -53,36 +53,36 @@ export const users = mysqlTable('users', {
 // VISION JOBS TABLE (Phase 3B - Brand Analysis)
 // =============================================================================
 
-export const visionJobs = mysqlTable('vision_jobs', {
-  id: bigint('id', { mode: 'number' }).primaryKey().autoincrement(),
-  
+export const visionJobs = pgTable('vision_jobs', {
+  id: uuid('id').primaryKey().defaultRandom(),
+
   // Foreign key to user
-  userId: varchar('user_id', { length: 36 })
+  userId: uuid('user_id')
     .notNull()
     .references(() => users.id, { onDelete: 'cascade' }),
-  
+
   // Image metadata
   imageUrl: text('image_url').notNull(),
   originalFilename: varchar('original_filename', { length: 255 }).notNull(),
   mimeType: varchar('mime_type', { length: 50 }).notNull(),
-  fileSize: int('file_size').notNull(),
-  
+  fileSize: integer('file_size').notNull(),
+
   // Processing status
   status: varchar('status', { length: 20 })
     .$type<VisionJobStatus>()
     .default('pending')
     .notNull(),
-  
-  // Gemini analysis output (JSON)
-  geminiOutput: json('gemini_output').$type<GeminiAnalysisOutput>(),
-  
+
+  // Gemini analysis output (JSONB)
+  geminiOutput: jsonb('gemini_output').$type<GeminiAnalysisOutput>(),
+
   // Error tracking
   errorMessage: text('error_message'),
-  retryCount: int('retry_count').default(0).notNull(),
-  
+  retryCount: integer('retry_count').default(0).notNull(),
+
   // Timestamps
   createdAt: timestamp('created_at').defaultNow().notNull(),
-  updatedAt: timestamp('updated_at').defaultNow().onUpdateNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
   processedAt: timestamp('processed_at'),
   deletedAt: timestamp('deleted_at'), // Soft delete support
 }, (table) => ({
@@ -98,35 +98,35 @@ export const visionJobs = mysqlTable('vision_jobs', {
 // VISION JOB VIDEO PROMPTS TABLE (Phase 3C - Director Mode)
 // =============================================================================
 
-export const visionJobVideoPrompts = mysqlTable('vision_job_video_prompts', {
-  id: bigint('id', { mode: 'number' }).primaryKey().autoincrement(),
-  
+export const visionJobVideoPrompts = pgTable('vision_job_video_prompts', {
+  id: uuid('id').primaryKey().defaultRandom(),
+
   // Foreign key to vision job
-  jobId: int('job_id')
+  jobId: uuid('job_id')
     .notNull()
     .references(() => visionJobs.id, { onDelete: 'cascade' }),
-  
-  // Director state (JSON blob containing full state machine)
-  directorOutput: json('director_output').$type<DirectorState>().notNull(),
-  
+
+  // Director state (JSONB blob containing full state machine)
+  directorOutput: jsonb('director_output').$type<DirectorState>().notNull(),
+
   // Denormalized status for efficient querying
   status: varchar('status', { length: 50 })
     .$type<VideoPromptStatus>()
     .default('idle')
     .notNull(),
-  
+
   // Remastered image URL (if quality was below threshold)
   remasteredImageUrl: text('remastered_image_url'),
-  
+
   // External API tracking
   klingJobId: varchar('kling_job_id', { length: 100 }),
-  
+
   // Cost tracking
-  creditsUsed: decimal('credits_used', { precision: 10, scale: 2 }).default('0'),
-  
+  creditsUsed: numeric('credits_used', { precision: 10, scale: 2 }).default('0'),
+
   // Timestamps
   createdAt: timestamp('created_at').defaultNow().notNull(),
-  updatedAt: timestamp('updated_at').defaultNow().onUpdateNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
   completedAt: timestamp('completed_at'),
 }, (table) => ({
   // P0 Critical: Index on foreign key
@@ -139,7 +139,7 @@ export const visionJobVideoPrompts = mysqlTable('vision_job_video_prompts', {
 // STYLE PRESETS TABLE (Phase 3C - Configurable Styles)
 // =============================================================================
 
-export const stylePresets = mysqlTable('style_presets', {
+export const stylePresets = pgTable('style_presets', {
   id: varchar('id', { length: 50 }).primaryKey(),
   name: varchar('name', { length: 100 }).notNull(),
   description: text('description'),
@@ -148,9 +148,9 @@ export const stylePresets = mysqlTable('style_presets', {
   category: varchar('category', { length: 50 }).notNull(),
   isPremium: boolean('is_premium').default(false).notNull(),
   isActive: boolean('is_active').default(true).notNull(),
-  sortOrder: int('sort_order').default(0).notNull(),
+  sortOrder: integer('sort_order').default(0).notNull(),
   createdAt: timestamp('created_at').defaultNow().notNull(),
-  updatedAt: timestamp('updated_at').defaultNow().onUpdateNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
 }, (table) => ({
   categoryIdx: index('idx_style_presets_category').on(table.category),
   activeIdx: index('idx_style_presets_active').on(table.isActive),
@@ -160,21 +160,21 @@ export const stylePresets = mysqlTable('style_presets', {
 // RATE LIMIT TRACKING TABLE (P0 Critical: Rate limiting support)
 // =============================================================================
 
-export const rateLimitBuckets = mysqlTable('rate_limit_buckets', {
-  id: bigint('id', { mode: 'number' }).primaryKey().autoincrement(),
-  
+export const rateLimitBuckets = pgTable('rate_limit_buckets', {
+  id: uuid('id').primaryKey().defaultRandom(),
+
   // Identifier (userId:endpoint or ip:endpoint)
   identifier: varchar('identifier', { length: 255 }).notNull(),
-  
+
   // Endpoint being rate limited
   endpoint: varchar('endpoint', { length: 100 }).notNull(),
-  
+
   // Request count in current window
-  requestCount: int('request_count').default(0).notNull(),
-  
+  requestCount: integer('request_count').default(0).notNull(),
+
   // Window start time
   windowStart: timestamp('window_start').notNull(),
-  
+
   // Window end time
   windowEnd: timestamp('window_end').notNull(),
 }, (table) => ({
@@ -186,13 +186,13 @@ export const rateLimitBuckets = mysqlTable('rate_limit_buckets', {
 // AUDIT LOG TABLE (For debugging and compliance)
 // =============================================================================
 
-export const auditLogs = mysqlTable('audit_logs', {
-  id: bigint('id', { mode: 'number' }).primaryKey().autoincrement(),
-  userId: varchar('user_id', { length: 36 }),
+export const auditLogs = pgTable('audit_logs', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  userId: uuid('user_id'),
   action: varchar('action', { length: 100 }).notNull(),
   entityType: varchar('entity_type', { length: 50 }).notNull(),
   entityId: varchar('entity_id', { length: 100 }),
-  details: json('details'),
+  details: jsonb('details'),
   ipAddress: varchar('ip_address', { length: 45 }),
   userAgent: text('user_agent'),
   createdAt: timestamp('created_at').defaultNow().notNull(),

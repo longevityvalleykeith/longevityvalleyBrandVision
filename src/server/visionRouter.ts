@@ -11,17 +11,19 @@
 import { TRPCError } from '@trpc/server';
 import { eq, and, desc, isNull } from 'drizzle-orm';
 import { z } from 'zod';
-import { db } from '../../drizzle/db';
-import { visionJobs, auditLogs } from '../../drizzle/schema';
+import { db } from './db';
+import { visionJobs, auditLogs, type VisionJob } from '../types/schema';
 import {
   router,
   protectedProcedure,
   uploadProcedure,
   handleServiceError,
 } from '../trpc';
-import { PaginationSchema, safeId } from '../../types/validation';
-import { processUploadedFile, scanForMalware } from '../utils/fileValidation';
-import type { VisionJob, PaginatedResponse } from '../../types';
+import { PaginationSchema, safeId } from '../types/validation';
+import { processUploadedFile, scanForMalware } from './utils/fileValidation';
+import type { PaginatedResponse } from '../types';
+import { transformVisionJobToAnalysisData, type BrandAnalysisData } from './utils/visionAdapter';
+import { uploadToSupabaseStorage } from './utils/supabaseStorage';
 
 // =============================================================================
 // INPUT SCHEMAS
@@ -70,10 +72,15 @@ export const visionRouter = router({
           });
         }
 
-        // Upload to storage (placeholder - integrate with S3/R2/etc.)
-        const imageUrl = await uploadToStorage(validatedFile);
+        // Upload to Supabase Storage with user-specific path for RLS
+        const imageUrl = await uploadToSupabaseStorage(
+          validatedFile.buffer,
+          validatedFile.sanitizedFilename,
+          validatedFile.mimeType,
+          ctx.userId!
+        );
 
-        // Create vision job record
+        // Create vision job record with UUID
         const [result] = await db.insert(visionJobs).values({
           userId: ctx.userId!,
           imageUrl,
@@ -81,32 +88,43 @@ export const visionRouter = router({
           mimeType: validatedFile.mimeType,
           fileSize: validatedFile.size,
           status: 'pending',
-        });
+        }).returning();
 
-        const jobId = result.insertId;
+        if (!result) {
+          throw new TRPCError({
+            code: 'INTERNAL_SERVER_ERROR',
+            message: 'Failed to create vision job',
+          });
+        }
 
         // Audit log
         await db.insert(auditLogs).values({
           userId: ctx.userId,
           action: 'vision_job_created',
           entityType: 'vision_job',
-          entityId: String(jobId),
+          entityId: result.id,
           details: {
             filename: validatedFile.sanitizedFilename,
             fileSize: validatedFile.size,
             mimeType: validatedFile.mimeType,
           },
-          ipAddress: ctx.ip,
+          ipAddress: ctx.req?.socket?.remoteAddress,
         });
 
         // Queue for processing (integrate with your job queue)
-        await queueVisionAnalysis(Number(jobId));
+        await queueVisionAnalysis(result.id);
 
-        return {
-          jobId: Number(jobId),
-          status: 'pending',
-          imageUrl,
-        };
+        // Transform to frontend format
+        const analysisData = transformVisionJobToAnalysisData(
+          result.id,
+          result.imageUrl,
+          result.status as 'pending',
+          null,
+          null,
+          result.createdAt
+        );
+
+        return analysisData;
       }, 'uploadImage');
     }),
 
@@ -132,7 +150,18 @@ export const visionRouter = router({
           });
         }
 
-        return job;
+        // Transform to frontend format
+        const analysisData = transformVisionJobToAnalysisData(
+          job.id,
+          job.imageUrl,
+          job.status as 'pending' | 'processing' | 'completed' | 'failed',
+          job.geminiOutput as any,
+          job.errorMessage,
+          job.createdAt,
+          job.processedAt
+        );
+
+        return analysisData;
       }, 'getJob');
     }),
 
@@ -330,41 +359,19 @@ export const visionRouter = router({
 });
 
 // =============================================================================
-// HELPER FUNCTIONS (Placeholders - integrate with your services)
+// HELPER FUNCTIONS
 // =============================================================================
 
 /**
- * Upload file to storage (placeholder)
+ * Queue vision analysis job
+ *
+ * @param jobId - Vision job UUID
  */
-async function uploadToStorage(file: {
-  buffer: Buffer;
-  sanitizedFilename: string;
-  mimeType: string;
-}): Promise<string> {
-  // TODO: Integrate with S3, R2, or other storage
-  // For now, return a placeholder URL
-  const timestamp = Date.now();
-  const filename = `${timestamp}-${file.sanitizedFilename}`;
-  
-  // In production:
-  // const { url } = await s3.upload({
-  //   Bucket: process.env.S3_BUCKET,
-  //   Key: `uploads/${filename}`,
-  //   Body: file.buffer,
-  //   ContentType: file.mimeType,
-  // });
-  
-  return `https://storage.example.com/uploads/${filename}`;
-}
-
-/**
- * Queue vision analysis job (placeholder)
- */
-async function queueVisionAnalysis(jobId: number): Promise<void> {
-  // TODO: Integrate with your job queue (BullMQ, SQS, etc.)
+async function queueVisionAnalysis(jobId: string): Promise<void> {
+  // TODO: Integrate with job queue (BullMQ, SQS, Inngest, etc.)
   // For now, log the action
   console.log(`[Queue] Vision analysis job queued: ${jobId}`);
-  
+
   // In production:
   // await jobQueue.add('vision-analysis', { jobId }, {
   //   attempts: 3,

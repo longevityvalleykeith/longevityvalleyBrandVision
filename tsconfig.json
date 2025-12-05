@@ -19,11 +19,7 @@
       }
     ],
     "paths": {
-      "@/*": ["./*"],
-      "@/types/*": ["./types/*"],
-      "@/drizzle/*": ["./drizzle/*"],
-      "@/server/*": ["./server/*"],
-      "@/client/*": ["./client/*"]
+      "@/*": ["./src/*"]
     },
     "baseUrl": ".",
     "forceConsistentCasingInFileNames": true,

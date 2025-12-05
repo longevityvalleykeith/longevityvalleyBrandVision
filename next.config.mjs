@@ -1,10 +1,6 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
-  experimental: {
-    // Enable app directory
-    appDir: true,
-  },
   // Specify that our source code is in the src directory
   pageExtensions: ['ts', 'tsx', 'js', 'jsx'],
 };

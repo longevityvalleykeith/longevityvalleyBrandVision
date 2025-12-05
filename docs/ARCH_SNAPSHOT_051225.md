@@ -1,6 +1,6 @@
 # Architecture Snapshot
 
-**Generated**: 2025-12-05T11:29:55.731Z
+**Generated**: 2025-12-05T14:38:22.446Z
 **Project**: Longevity Valley Brand Content Factory
 **Phase**: 3B + 3C (Brand Analysis + Video Director Mode)
 
@@ -61,6 +61,8 @@
     │   │   │   └── trpc
     │   │   │       └── [trpc]
     │   │   │           └── route.ts
+    │   │   ├── studio
+    │   │   │   └── page.tsx
     │   │   ├── layout.tsx
     │   │   ├── page.tsx
     │   │   └── providers.tsx
@@ -68,6 +70,8 @@
     │   │   ├── DirectorMode.tsx
     │   │   ├── ErrorBoundary.tsx
     │   │   └── useDirector.ts
+    │   ├── lib
+    │   │   └── trpc.ts
     │   ├── server
     │   │   ├── middleware
     │   │   │   └── rateLimit.ts
@@ -76,7 +80,10 @@
     │   │   │   ├── fluxPreviewer.ts
     │   │   │   └── klingVideo.ts
     │   │   ├── utils
-    │   │   │   └── stylePresets.ts
+    │   │   │   ├── stylePresets.ts
+    │   │   │   ├── supabaseStorage.ts
+    │   │   │   └── visionAdapter.ts
+    │   │   ├── .directorRouter.ts.swp
     │   │   ├── database.ts
     │   │   ├── db.ts
     │   │   ├── directorRouter.ts
@@ -109,6 +116,7 @@
     ├── .env.example
     ├── .env.local
     ├── .gitignore
+    ├── CHANGELOG.md
     ├── drizzle.config.ts
     ├── FINAL-DEV_SPEC_v2.md
     ├── next-env.d.ts
@@ -241,11 +249,7 @@ export default {
       }
     ],
     "paths": {
-      "@/*": ["./*"],
-      "@/types/*": ["./types/*"],
-      "@/drizzle/*": ["./drizzle/*"],
-      "@/server/*": ["./server/*"],
-      "@/client/*": ["./client/*"]
+      "@/*": ["./src/*"]
     },
     "baseUrl": ".",
     "forceConsistentCasingInFileNames": true,

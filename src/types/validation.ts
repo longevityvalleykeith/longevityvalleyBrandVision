@@ -17,10 +17,21 @@ import { VALIDATION } from './index';
 
 /**
  * Sanitized string - trims whitespace and removes control characters
+ * Note: Apply .min(), .max() BEFORE using this, or use sanitizedStringWithLength()
  */
-export const sanitizedString = z.string().transform((val) => 
-  val.trim().replace(/[\x00-\x1F\x7F]/g, '')
-);
+const sanitizeTransform = (val: string) => val.trim().replace(/[\x00-\x1F\x7F]/g, '');
+
+export const sanitizedString = z.string().transform(sanitizeTransform);
+
+/**
+ * Helper to create sanitized string with length constraints
+ */
+export const sanitizedStringWithLength = (min?: number, max?: number) => {
+  let schema = z.string();
+  if (min !== undefined) schema = schema.min(min);
+  if (max !== undefined) schema = schema.max(max);
+  return schema.transform(sanitizeTransform);
+};
 
 /**
  * Safe integer ID
@@ -83,11 +94,12 @@ export const VideoPromptStatusSchema = z.enum([
 
 export const FileUploadSchema = z.object({
   /** Original filename */
-  filename: sanitizedString
+  filename: z.string()
     .min(1, 'Filename is required')
     .max(255, 'Filename too long')
+    .transform(sanitizeTransform)
     .refine(
-      (name) => /^[\w\-. ]+$/.test(name),
+      (name: string) => /^[\w\-. ]+$/.test(name),
       { message: 'Invalid characters in filename' }
     ),
   /** MIME type */
@@ -143,14 +155,14 @@ export function validateMagicBytes(buffer: Buffer, declaredMimeType: string): bo
 export const VideoSceneSchema = z.object({
   id: uuid,
   sequence_index: z.number().int().min(1).max(VALIDATION.MAX_SCENES),
-  invariant_token: sanitizedString.min(1).max(VALIDATION.MAX_PROMPT_LENGTH),
-  action_token: sanitizedString.min(1).max(VALIDATION.MAX_PROMPT_LENGTH),
-  style_token: sanitizedString.max(VALIDATION.MAX_PROMPT_LENGTH),
-  full_prompt: sanitizedString.max(VALIDATION.MAX_PROMPT_LENGTH * 3),
+  invariant_token: sanitizedStringWithLength(1, VALIDATION.MAX_PROMPT_LENGTH),
+  action_token: sanitizedStringWithLength(1, VALIDATION.MAX_PROMPT_LENGTH),
+  style_token: sanitizedStringWithLength(undefined, VALIDATION.MAX_PROMPT_LENGTH),
+  full_prompt: sanitizedStringWithLength(undefined, VALIDATION.MAX_PROMPT_LENGTH * 3),
   status: TrafficLightStatusSchema,
   preview_url: safeUrl.nullable(),
   video_url: safeUrl.nullable(),
-  user_feedback: sanitizedString.max(VALIDATION.MAX_FEEDBACK_LENGTH).nullable(),
+  user_feedback: sanitizedStringWithLength(undefined, VALIDATION.MAX_FEEDBACK_LENGTH).nullable(),
   hidden_style_url: safeUrl.nullable(),
   duration: z.number().min(1).max(60).default(5),
   attempt_count: z.number().int().min(0).max(10).default(0),
@@ -163,16 +175,16 @@ export type VideoSceneInput = z.infer<typeof VideoSceneSchema>;
 // =============================================================================
 
 export const DirectorStateSchema = z.object({
-  jobId: safeId,
+  jobId: uuid,
   stage: DirectorStageSchema,
   quality_score: z.number().min(0).max(10),
   source_image_url: safeUrl,
   is_remastered: z.boolean(),
   selected_style_id: sanitizedString.nullable(),
-  invariant_visual_summary: sanitizedString.max(VALIDATION.MAX_PROMPT_LENGTH).nullable(),
+  invariant_visual_summary: sanitizedStringWithLength(undefined, VALIDATION.MAX_PROMPT_LENGTH).nullable(),
   scenes: z.array(VideoSceneSchema).max(VALIDATION.MAX_SCENES),
   cost_estimate: z.number().min(0),
-  error_message: sanitizedString.max(1000).nullable(),
+  error_message: sanitizedStringWithLength(undefined, 1000).nullable(),
   started_at: z.date().nullable(),
   completed_at: z.date().nullable(),
 });
@@ -187,7 +199,7 @@ export type DirectorStateInput = z.infer<typeof DirectorStateSchema>;
  * Init Director endpoint input
  */
 export const InitDirectorInputSchema = z.object({
-  jobId: safeId,
+  jobId: uuid,
   forceRemaster: z.boolean().default(false),
   preferredStyleId: sanitizedString.optional(),
 }).strict();
@@ -200,7 +212,7 @@ export type InitDirectorInputValidated = z.infer<typeof InitDirectorInputSchema>
 export const RefineActionSchema = z.object({
   sceneId: uuid,
   status: z.enum(['YELLOW', 'RED']),
-  feedback: sanitizedString.max(VALIDATION.MAX_FEEDBACK_LENGTH).optional(),
+  feedback: sanitizedStringWithLength(undefined, VALIDATION.MAX_FEEDBACK_LENGTH).optional(),
 }).refine(
   (data) => {
     // YELLOW status requires feedback
@@ -218,7 +230,7 @@ export type RefineActionInput = z.infer<typeof RefineActionSchema>;
  * Refine Storyboard endpoint input
  */
 export const RefineStoryboardInputSchema = z.object({
-  jobId: safeId,
+  jobId: uuid,
   refinements: z.array(RefineActionSchema)
     .min(1, 'At least one refinement is required')
     .max(VALIDATION.MAX_SCENES, `Maximum ${VALIDATION.MAX_SCENES} refinements allowed`),
@@ -230,7 +242,7 @@ export type RefineStoryboardInputValidated = z.infer<typeof RefineStoryboardInpu
  * Approve Production endpoint input
  */
 export const ApproveProductionInputSchema = z.object({
-  jobId: safeId,
+  jobId: uuid,
   confirmedSceneIds: z.array(uuid)
     .min(1, 'At least one scene must be confirmed')
     .max(VALIDATION.MAX_SCENES),
@@ -242,7 +254,7 @@ export type ApproveProductionInputValidated = z.infer<typeof ApproveProductionIn
  * Get Director State endpoint input
  */
 export const GetDirectorStateInputSchema = z.object({
-  jobId: safeId,
+  jobId: uuid,
 }).strict();
 
 export type GetDirectorStateInputValidated = z.infer<typeof GetDirectorStateInputSchema>;
@@ -272,10 +284,10 @@ export const StyleCategorySchema = z.enum([
 ]);
 
 export const StylePresetSchema = z.object({
-  id: sanitizedString.min(1).max(50),
-  name: sanitizedString.min(1).max(100),
-  description: sanitizedString.max(500),
-  prompt_layer: sanitizedString.max(VALIDATION.MAX_PROMPT_LENGTH),
+  id: sanitizedStringWithLength(1, 50),
+  name: sanitizedStringWithLength(1, 100),
+  description: sanitizedStringWithLength(undefined, 500),
+  prompt_layer: sanitizedStringWithLength(undefined, VALIDATION.MAX_PROMPT_LENGTH),
   hidden_ref_url: safeUrl,
   category: StyleCategorySchema,
   is_premium: z.boolean(),

@@ -13,14 +13,14 @@ import type {
   DirectorState, 
   RefineAction, 
   StylePreset,
-} from '../../types';
+} from '@/types';
 
 // =============================================================================
 // TYPES
 // =============================================================================
 
 interface UseDirectorOptions {
-  jobId: number;
+  jobId: string;
   /** Callback when director state changes */
   onStateChange?: (state: DirectorState) => void;
   /** Callback on error */

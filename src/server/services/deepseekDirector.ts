@@ -9,7 +9,7 @@
  */
 
 import { v4 as uuidv4 } from 'uuid';
-import type { GeminiAnalysisOutput, VideoScene, StylePreset } from '../../types';
+import type { GeminiAnalysisOutput, VideoScene, StylePreset } from '@/types';
 
 // =============================================================================
 // CONFIGURATION
@@ -117,6 +117,10 @@ function selectBestStyle(
   analysis: GeminiAnalysisOutput,
   availableStyles: StylePreset[]
 ): StylePreset {
+  if (availableStyles.length === 0) {
+    throw new Error('No style presets available');
+  }
+
   // If analysis recommends a style, use it if available
   if (analysis.recommended_style_id) {
     const recommended = availableStyles.find((s) => s.id === analysis.recommended_style_id);
@@ -130,28 +134,22 @@ function selectBestStyle(
   const industry = analysis.brand_attributes.industry?.toLowerCase();
 
   // Map moods to categories
+  let selected: StylePreset | undefined;
+
   if (mood.includes('luxury') || mood.includes('elegant') || mood.includes('premium')) {
-    return availableStyles.find((s) => s.category === 'luxury') || availableStyles[0];
-  }
-
-  if (mood.includes('tech') || mood.includes('modern') || industry?.includes('technology')) {
-    return availableStyles.find((s) => s.category === 'tech') || availableStyles[0];
-  }
-
-  if (mood.includes('natural') || mood.includes('organic') || industry?.includes('wellness')) {
-    return availableStyles.find((s) => s.category === 'nature') || availableStyles[0];
-  }
-
-  if (mood.includes('dramatic') || mood.includes('bold')) {
-    return availableStyles.find((s) => s.category === 'dramatic') || availableStyles[0];
-  }
-
-  if (mood.includes('minimal') || mood.includes('clean') || mood.includes('simple')) {
-    return availableStyles.find((s) => s.category === 'minimal') || availableStyles[0];
+    selected = availableStyles.find((s) => s.category === 'luxury');
+  } else if (mood.includes('tech') || mood.includes('modern') || industry?.includes('technology')) {
+    selected = availableStyles.find((s) => s.category === 'tech');
+  } else if (mood.includes('natural') || mood.includes('organic') || industry?.includes('wellness')) {
+    selected = availableStyles.find((s) => s.category === 'nature');
+  } else if (mood.includes('dramatic') || mood.includes('bold')) {
+    selected = availableStyles.find((s) => s.category === 'dramatic');
+  } else if (mood.includes('minimal') || mood.includes('clean') || mood.includes('simple')) {
+    selected = availableStyles.find((s) => s.category === 'minimal');
   }
 
   // Default to first available style
-  return availableStyles[0];
+  return selected || availableStyles[0];
 }
 
 /**
@@ -269,7 +267,7 @@ function generateFallbackScenes(
   analysis: GeminiAnalysisOutput,
   invariant_token: string
 ): string[] {
-  const subject = analysis.visual_elements.primary_subject || 'the product';
+  const subject = analysis.visual_elements.focal_points[0] || analysis.visual_elements.composition || 'the product';
 
   return [
     `Close-up of ${subject} with ${invariant_token}, smooth reveal`,

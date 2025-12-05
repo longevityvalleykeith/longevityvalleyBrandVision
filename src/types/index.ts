@@ -26,6 +26,14 @@ export const VALIDATION = {
   } as const,
 } as const;
 
+export const RATE_LIMITS = {
+  GENERATE_RPM: 10, // Generate endpoint: 10 requests per minute
+  UPLOAD_RPM: 20, // Upload endpoint: 20 requests per minute
+  REFINE_RPM: 30, // Refine endpoint: 30 requests per minute
+  API_RPM: 60, // General API: 60 requests per minute
+  WINDOW_MS: 60000, // 1 minute window
+} as const;
+
 // =============================================================================
 // ENUMS
 // =============================================================================
@@ -91,7 +99,7 @@ export interface VideoScene {
   status: TrafficLightStatus;
   preview_url?: string;
   video_url?: string;
-  user_feedback?: string;
+  user_feedback?: string | null;
   engine?: ProductionEngine;
   attempt_count: number; // Number of refinement attempts
 }
@@ -173,11 +181,13 @@ export interface User {
 // STYLE PRESET
 // =============================================================================
 
+export type StyleCategory = 'luxury' | 'tech' | 'nature' | 'dramatic' | 'minimal';
+
 export interface StylePreset {
   id: string;
   name: string;
   description: string;
-  category: 'luxury' | 'tech' | 'nature' | 'dramatic' | 'minimal';
+  category: StyleCategory;
   prompt_template: string;
   negative_prompt?: string;
   is_premium: boolean;
@@ -202,6 +212,8 @@ export interface PaginatedResponse<T> {
     limit: number;
     total: number;
     totalPages: number;
+    hasNext: boolean;
+    hasPrev: boolean;
   };
 }
 

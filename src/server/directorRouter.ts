@@ -32,10 +32,10 @@ import type {
   GeminiAnalysisOutput,
 } from '../types';
 import { createDirectorState, VALIDATION } from '../types';
-import { generateInitialStoryboard, refineScenePrompt } from '../services/deepseekDirector';
-import { generateFluxPreviews, runFluxRemaster, regenerateScene } from '../services/fluxPreviewer';
-import { queueBatchVideoGeneration } from '../services/klingVideo';
-import { STYLE_PRESETS, getStylePreset } from '../utils/stylePresets';
+import { generateInitialStoryboard, refineScenePrompt } from './services/deepseekDirector';
+import { generateFluxPreviews, runFluxRemaster, regenerateScene } from './services/fluxPreviewer';
+import { queueBatchVideoGeneration } from './services/klingVideo';
+import { STYLE_PRESETS, getStylePreset } from './utils/stylePresets';
 
 // =============================================================================
 // DIRECTOR ROUTER
@@ -114,7 +114,7 @@ export const directorRouter = router({
         if (input.forceRemaster || qualityScore < VALIDATION.MIN_QUALITY_SCORE) {
           workingImageUrl = await runFluxRemaster(
             job.imageUrl,
-            analysis.visual_elements?.primary_subject
+            analysis.visual_elements?.focal_points[0] || analysis.visual_elements?.composition
           );
           isRemastered = true;
         }
@@ -244,9 +244,15 @@ export const directorRouter = router({
 
             // Get style for the scene
             const style = getStylePreset(currentState.selected_style_id || '') || STYLE_PRESETS[0];
+            if (!style) {
+              throw new TRPCError({
+                code: 'INTERNAL_SERVER_ERROR',
+                message: 'No style preset available',
+              });
+            }
 
             // Regenerate preview with new action
-            const updatedScene = await regenerateScene(scene, newAction, style.prompt_layer);
+            const updatedScene = await regenerateScene(scene, newAction, style.prompt_template);
 
             return {
               ...updatedScene,

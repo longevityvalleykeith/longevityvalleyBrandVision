@@ -17,6 +17,13 @@ export const VALIDATION = {
   MAX_FILENAME_LENGTH: 255,
   MAX_FEEDBACK_LENGTH: 500,
   MIN_QUALITY_SCORE: 7.0,
+  MAX_PROMPT_LENGTH: 2000,
+  MAX_SCENES: 10,
+  MAGIC_BYTES: {
+    JPEG: [0xFF, 0xD8, 0xFF] as const,
+    PNG: [0x89, 0x50, 0x4E, 0x47] as const,
+    WEBP: [0x52, 0x49, 0x46, 0x46] as const, // + WEBP at offset 8
+  } as const,
 } as const;
 
 // =============================================================================
@@ -86,6 +93,7 @@ export interface VideoScene {
   video_url?: string;
   user_feedback?: string;
   engine?: ProductionEngine;
+  attempt_count: number; // Number of refinement attempts
 }
 
 // =============================================================================
@@ -93,15 +101,18 @@ export interface VideoScene {
 // =============================================================================
 
 export interface DirectorState {
-  job_id: number;
+  jobId: string;
   stage: DirectorStage;
   quality_score: number;
+  source_image_url: string;
   is_remastered: boolean;
-  selected_style_id: string;
+  selected_style_id: string | null;
+  invariant_visual_summary: string;
   scenes: VideoScene[];
   cost_estimate: number; // in credits
-  created_at: Date;
-  updated_at: Date;
+  error_message: string | null;
+  started_at: Date;
+  completed_at: Date | null;
 }
 
 // =============================================================================
@@ -191,6 +202,30 @@ export interface PaginatedResponse<T> {
     limit: number;
     total: number;
     totalPages: number;
+  };
+}
+
+// =============================================================================
+// HELPER FUNCTIONS
+// =============================================================================
+
+/**
+ * Create an initial DirectorState with default values
+ */
+export function createDirectorState(jobId: string, source_image_url: string): DirectorState {
+  return {
+    jobId,
+    stage: 'IDLE',
+    quality_score: 0,
+    source_image_url,
+    is_remastered: false,
+    selected_style_id: null,
+    invariant_visual_summary: '',
+    scenes: [],
+    cost_estimate: 0,
+    error_message: null,
+    started_at: new Date(),
+    completed_at: null,
   };
 }
 

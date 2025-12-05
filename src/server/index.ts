@@ -10,9 +10,10 @@
 import { router, publicProcedure } from '../trpc';
 import { visionRouter } from './visionRouter';
 import { directorRouter } from './directorRouter';
-import { checkDatabaseConnection } from '../../drizzle/db';
-import { isDeepSeekConfigured, checkDeepSeekHealth } from '../services/deepseekDirector';
-import { isFluxConfigured, checkFluxHealth } from '../services/fluxPreviewer';
+import { checkDatabaseConnection } from './db';
+import { isDeepSeekConfigured, checkDeepSeekHealth } from './services/deepseekDirector';
+import { isFluxConfigured, checkFluxHealth } from './services/fluxPreviewer';
+import { isKlingConfigured, checkKlingHealth } from './services/klingVideo';
 
 // =============================================================================
 // HEALTH CHECK ROUTER
@@ -38,6 +39,7 @@ const healthRouter = router({
       checkDatabaseConnection().then((ok) => ({ name: 'database', ok })),
       checkDeepSeekHealth().then((ok) => ({ name: 'deepseek', ok })),
       checkFluxHealth().then((ok) => ({ name: 'flux', ok })),
+      checkKlingHealth().then((ok) => ({ name: 'kling', ok })),
     ]);
 
     const allHealthy = checks.every((c) => c.ok);
@@ -53,6 +55,7 @@ const healthRouter = router({
       config: {
         deepseek: isDeepSeekConfigured(),
         flux: isFluxConfigured(),
+        kling: isKlingConfigured(),
       },
     };
   }),

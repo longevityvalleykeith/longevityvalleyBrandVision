@@ -34,6 +34,7 @@ import type {
 import { createDirectorState, VALIDATION } from '../../types';
 import { generateInitialStoryboard, refineScenePrompt } from '../services/deepseekDirector';
 import { generateFluxPreviews, runFluxRemaster, regenerateScene } from '../services/fluxPreviewer';
+import { queueBatchVideoGeneration } from '../services/klingVideo';
 import { STYLE_PRESETS, getStylePreset } from '../utils/stylePresets';
 
 // =============================================================================
@@ -331,15 +332,24 @@ export const directorRouter = router({
 
         await db
           .update(visionJobVideoPrompts)
-          .set({ 
+          .set({
             directorOutput: newState,
             status: 'rendering',
           })
           .where(eq(visionJobVideoPrompts.jobId, input.jobId));
 
-        // TODO: Queue Kling API job
-        // This would be an async operation - return immediately
-        // and poll for status via getDirectorState
+        // Queue Kling API jobs for approved scenes
+        const selectedStyle = getStylePreset(currentState.selected_style_id || '');
+        const stylePromptLayer = selectedStyle?.prompt_template;
+
+        // Start video generation in background (don't await)
+        queueBatchVideoGeneration(confirmedScenes, stylePromptLayer)
+          .then((jobs) => {
+            console.log(`Queued ${jobs.length} video generation jobs for jobId ${input.jobId}`);
+          })
+          .catch((error) => {
+            console.error('Error queuing video generation:', error);
+          });
 
         return newState;
       }, 'approveProduction');

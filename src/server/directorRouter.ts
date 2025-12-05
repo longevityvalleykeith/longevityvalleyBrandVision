@@ -25,13 +25,13 @@ import {
   RefineStoryboardInputSchema,
   ApproveProductionInputSchema,
   GetDirectorStateInputSchema,
-} from '../../types/validation';
-import type { 
-  DirectorState, 
+} from '../types/validation';
+import type {
+  DirectorState,
   VideoScene,
   GeminiAnalysisOutput,
-} from '../../types';
-import { createDirectorState, VALIDATION } from '../../types';
+} from '../types';
+import { createDirectorState, VALIDATION } from '../types';
 import { generateInitialStoryboard, refineScenePrompt } from '../services/deepseekDirector';
 import { generateFluxPreviews, runFluxRemaster, regenerateScene } from '../services/fluxPreviewer';
 import { queueBatchVideoGeneration } from '../services/klingVideo';

@@ -1,6 +1,6 @@
 # Architecture Snapshot
 
-**Generated**: 2025-12-05T11:27:06.089Z
+**Generated**: 2025-12-05T11:29:55.731Z
 **Project**: Longevity Valley Brand Content Factory
 **Phase**: 3B + 3C (Brand Analysis + Video Director Mode)
 

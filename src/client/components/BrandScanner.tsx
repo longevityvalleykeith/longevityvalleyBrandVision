@@ -79,36 +79,17 @@ export default function BrandScanner() {
   }, [getJobQuery.data]);
 
   /**
-   * Handle file selection from dropzone
+   * Core upload function that takes a file directly
+   * This eliminates state race conditions
    */
-  const handleFileSelect = useCallback((file: File) => {
-    setSelectedFile(file);
-
-    // Create preview
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      setPreview(e.target?.result as string);
-    };
-    reader.readAsDataURL(file);
-
-    // Clear previous analysis
-    setAnalysisData(null);
-  }, []);
-
-  /**
-   * Handle file upload
-   */
-  const handleUpload = useCallback(async () => {
-    console.log('🖱️ Button Clicked');
-    console.log('📁 Selected File:', selectedFile);
+  const uploadFile = useCallback(async (file: File) => {
+    console.log('✅ File Captured in State:', file.name);
+    console.log('📁 File Object:', file);
     console.log('📊 File Details:', {
-      name: selectedFile?.name,
-      type: selectedFile?.type,
-      size: selectedFile?.size,
+      name: file.name,
+      type: file.type,
+      size: file.size,
     });
-
-    // OPERATION HANDSHAKE: Removed defensive check for testing
-    // if (!selectedFile) return;
 
     console.log('⏳ Setting isUploading to true...');
     setIsUploading(true);
@@ -140,16 +121,15 @@ export default function BrandScanner() {
         return;
       }
 
-      console.log('📤 Payload:', selectedFile);
       console.log('🚀 Calling uploadMutation.mutate with:', {
-        filename: selectedFile?.name || 'unknown.jpg',
-        mimeType: selectedFile?.type || 'image/jpeg',
+        filename: file.name,
+        mimeType: file.type,
         dataLength: base64Data.length,
       });
 
       uploadMutation.mutate({
-        filename: selectedFile?.name || 'unknown.jpg',
-        mimeType: selectedFile?.type || 'image/jpeg',
+        filename: file.name,
+        mimeType: file.type,
         data: base64Data,
       });
 
@@ -161,13 +141,47 @@ export default function BrandScanner() {
       setIsUploading(false);
     };
 
-    if (selectedFile) {
-      console.log('📂 Starting FileReader.readAsDataURL...');
-      reader.readAsDataURL(selectedFile);
-    } else {
-      console.warn('⚠️ No selectedFile - skipping FileReader');
+    console.log('📂 Starting FileReader.readAsDataURL...');
+    reader.readAsDataURL(file);
+  }, [uploadMutation]);
+
+  /**
+   * Handle file selection from dropzone
+   * Now immediately uploads the file to avoid state race conditions
+   */
+  const handleFileSelect = useCallback((file: File) => {
+    console.log('🎯 handleFileSelect called with file:', file.name);
+
+    setSelectedFile(file);
+
+    // Create preview
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      setPreview(e.target?.result as string);
+    };
+    reader.readAsDataURL(file);
+
+    // Clear previous analysis
+    setAnalysisData(null);
+
+    // Immediately upload the file (no race condition!)
+    uploadFile(file);
+  }, [uploadFile]);
+
+  /**
+   * Handle manual upload button click
+   * Uses the selectedFile state
+   */
+  const handleUpload = useCallback(async () => {
+    console.log('🖱️ Upload Button Clicked');
+
+    if (!selectedFile) {
+      console.warn('⚠️ No selectedFile - cannot upload');
+      return;
     }
-  }, [selectedFile, uploadMutation]);
+
+    uploadFile(selectedFile);
+  }, [selectedFile, uploadFile]);
 
   /**
    * Retry failed analysis

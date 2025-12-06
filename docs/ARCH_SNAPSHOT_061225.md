@@ -1,6 +1,6 @@
 # Architecture Snapshot
 
-**Generated**: 2025-12-06T07:07:48.157Z
+**Generated**: 2025-12-06T09:22:57.949Z
 **Project**: Longevity Valley Brand Content Factory
 **Phase**: 3B + 3C (Brand Analysis + Video Director Mode)
 
@@ -52,11 +52,20 @@
     │   ├── SECURITY_VERIFICATION_REPORT.md
     │   ├── SECURITY.md
     │   └── TEST_REPORT.md
+    ├── drizzle
+    │   └── migrations
+    │       ├── meta
+    │       │   ├── _journal.json
+    │       │   └── 0000_snapshot.json
+    │       ├── 0000_steep_human_robot.sql
+    │       └── 0001_fix_schema_sync.sql
     ├── scripts
     │   ├── consult-cto.ts
     │   ├── generate-arch-report.ts
+    │   ├── run-migration-now.ts
     │   ├── sentinel.ts
-    │   └── test-db-connection.ts
+    │   ├── test-db-connection.ts
+    │   └── verify-schema.ts
     ├── src
     │   ├── app
     │   │   ├── api
@@ -198,7 +207,7 @@
     "@types/uuid": "^9.0.0",
     "@typescript-eslint/eslint-plugin": "^6.0.0",
     "@typescript-eslint/parser": "^6.0.0",
-    "drizzle-kit": "^0.20.10",
+    "drizzle-kit": "^0.31.8",
     "eslint": "^8.0.0",
     "eslint-config-next": "^14.1.0",
     "glob": "^13.0.0",
@@ -227,7 +236,7 @@ export default {
   out: './drizzle/migrations',
   dialect: 'postgresql',
   dbCredentials: {
-    connectionString: process.env.DATABASE_URL || '',
+    url: process.env.DATABASE_URL || '',
   },
   verbose: true,
   strict: true,

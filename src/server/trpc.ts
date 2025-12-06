@@ -7,7 +7,7 @@
  * @version 3.0.0
  */
 
-import { createTRPCReact, httpBatchLink, TRPCClientError } from '@trpc/react-query';
+import { createTRPCReact, httpLink, TRPCClientError } from '@trpc/react-query';
 import { QueryClient } from '@tanstack/react-query';
 import superjson from 'superjson';
 import type { AppRouter } from './index';
@@ -65,20 +65,18 @@ export function createTRPCClient(opts: { url: string; getAuthToken?: () => strin
   return trpc.createClient({
     transformer: superjson,
     links: [
-      httpBatchLink({
+      httpLink({
         url: opts.url,
         headers: () => {
           const headers: Record<string, string> = {};
-          
+
           const token = opts.getAuthToken?.();
           if (token) {
             headers['Authorization'] = `Bearer ${token}`;
           }
-          
+
           return headers;
         },
-        // Batch configuration
-        maxURLLength: 2000,
       }),
     ],
   });

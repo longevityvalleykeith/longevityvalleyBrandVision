@@ -354,11 +354,11 @@ async function dispatchToProduction(
   primaryEngine: ProductionEngine
 ): Promise<{ video_url: string; engine_used: ProductionEngine; fallback_triggered: boolean }> {
   const engines = [primaryEngine, ...ENGINE_FALLBACK_CHAIN[primaryEngine]];
-  
+
   for (let i = 0; i < engines.length; i++) {
-    const engine = engines[i];
+    const engine = engines[i]!;
     const engineInstance = getEngineInstance(engine);
-    
+
     try {
       const result = await engineInstance.render(scene);
       return {
@@ -721,25 +721,25 @@ describe('Director Flow - Headless Tests', () => {
       // First YELLOW edit
       const edit1 = await processYellowFeedback(sceneId, 'Make it warmer');
       expect(edit1.conversation_history).toHaveLength(2); // user + assistant
-      expect(edit1.conversation_history[0].role).toBe('user');
-      expect(edit1.conversation_history[1].role).toBe('assistant');
+      expect(edit1.conversation_history[0]!.role).toBe('user');
+      expect(edit1.conversation_history[1]!.role).toBe('assistant');
       
       // Second YELLOW edit
       const edit2 = await processYellowFeedback(sceneId, 'Add more motion');
       expect(edit2.conversation_history).toHaveLength(4);
       
       // Verify context is preserved
-      expect(edit2.conversation_history[0].content).toContain('warmer');
-      expect(edit2.conversation_history[2].content).toContain('motion');
+      expect(edit2.conversation_history[0]!.content).toContain('warmer');
+      expect(edit2.conversation_history[2]!.content).toContain('motion');
     });
 
     it('should store timestamps for each message', async () => {
       const sceneId = 'test-scene-002';
       
       const result = await processYellowFeedback(sceneId, 'Test feedback');
-      
-      expect(result.conversation_history[0].timestamp).toBeTruthy();
-      expect(new Date(result.conversation_history[0].timestamp)).toBeInstanceOf(Date);
+
+      expect(result.conversation_history[0]!.timestamp).toBeTruthy();
+      expect(new Date(result.conversation_history[0]!.timestamp)).toBeInstanceOf(Date);
     });
 
     it('should handle multiple scenes independently', async () => {
@@ -757,8 +757,8 @@ describe('Director Flow - Headless Tests', () => {
       expect(result2.conversation_history).toHaveLength(4);
       
       // Histories should be independent
-      expect(result1.conversation_history[0].content).toContain('scene A');
-      expect(result2.conversation_history[0].content).toContain('scene B');
+      expect(result1.conversation_history[0]!.content).toContain('scene A');
+      expect(result2.conversation_history[0]!.content).toContain('scene B');
     });
   });
 

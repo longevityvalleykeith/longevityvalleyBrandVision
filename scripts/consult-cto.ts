@@ -65,6 +65,10 @@ function getLatestSnapshot(): string | null {
     }))
     .sort((a, b) => b.mtime - a.mtime);
 
+  if (sortedFiles.length === 0) {
+    throw new Error('No architecture snapshots found in docs/ directory');
+  }
+
   return sortedFiles[0].path;
 }
 

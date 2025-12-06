@@ -1,6 +1,6 @@
 # Architecture Snapshot
 
-**Generated**: 2025-12-05T18:43:00.075Z
+**Generated**: 2025-12-06T07:07:48.157Z
 **Project**: Longevity Valley Brand Content Factory
 **Phase**: 3B + 3C (Brand Analysis + Video Director Mode)
 
@@ -55,7 +55,8 @@
     ├── scripts
     │   ├── consult-cto.ts
     │   ├── generate-arch-report.ts
-    │   └── sentinel.ts
+    │   ├── sentinel.ts
+    │   └── test-db-connection.ts
     ├── src
     │   ├── app
     │   │   ├── api
@@ -90,7 +91,6 @@
     │   │   │   ├── stylePresets.ts
     │   │   │   ├── supabaseStorage.ts
     │   │   │   └── visionAdapter.ts
-    │   │   ├── .directorRouter.ts.swp
     │   │   ├── .DS_Store
     │   │   ├── database.ts
     │   │   ├── db.ts
@@ -120,6 +120,7 @@
     │   │   ├── 002_rls_policies.sql
     │   │   ├── 003_storage_buckets.sql
     │   │   └── 004_seed_data.sql
+    │   ├── .DS_Store
     │   └── config.toml
     ├── .DS_Store
     ├── .env.example
@@ -349,11 +350,16 @@ export const visionJobs = pgTable('vision_jobs', {
     .notNull()
     .references(() => users.id, { onDelete: 'cascade' }),
 
-  // Image metadata
+  // Original Upload metadata
   imageUrl: text('image_url').notNull(),
   originalFilename: varchar('original_filename', { length: 255 }).notNull(),
   mimeType: varchar('mime_type', { length: 50 }).notNull(),
   fileSize: integer('file_size').notNull(),
+  fileHash: varchar('file_hash', { length: 64 }), // SHA256 for deduplication
+
+  // Style Reference (Generated - Phase 3C)
+  styleReferenceUrl: text('style_reference_url'),
+  brandEssencePrompt: text('brand_essence_prompt'),
 
   // Processing status
   status: varchar('status', { length: 20 })
@@ -363,6 +369,12 @@ export const visionJobs = pgTable('vision_jobs', {
 
   // Gemini analysis output (JSONB)
   geminiOutput: jsonb('gemini_output').$type<GeminiAnalysisOutput>(),
+
+  // Scores (denormalized for efficient routing queries)
+  physicsScore: numeric('physics_score', { precision: 3, scale: 2 }),
+  vibeScore: numeric('vibe_score', { precision: 3, scale: 2 }),
+  logicScore: numeric('logic_score', { precision: 3, scale: 2 }),
+  integrityScore: numeric('integrity_score', { precision: 3, scale: 2 }),
 
   // Error tracking
   errorMessage: text('error_message'),
@@ -380,6 +392,8 @@ export const visionJobs = pgTable('vision_jobs', {
   createdAtIdx: index('idx_vision_jobs_created_at').on(table.createdAt),
   // Composite index for user's recent jobs
   userStatusIdx: index('idx_vision_jobs_user_status').on(table.userId, table.status),
+  // Routing index for production engine selection
+  routingIdx: index('idx_vision_jobs_routing').on(table.physicsScore, table.vibeScore, table.logicScore),
 }));
 
 // =============================================================================
@@ -394,20 +408,27 @@ export const visionJobVideoPrompts = pgTable('vision_job_video_prompts', {
     .notNull()
     .references(() => visionJobs.id, { onDelete: 'cascade' }),
 
-  // Director state (JSONB blob containing full state machine)
-  directorOutput: jsonb('director_output').$type<DirectorState>().notNull(),
+  // Routing Decision
+  productionEngine: varchar('production_engine', { length: 20 }).notNull(),
+  routingReason: text('routing_reason'), // Why this engine was selected
 
-  // Denormalized status for efficient querying
-  status: varchar('status', { length: 50 })
+  // Workflow State
+  status: varchar('status', { length: 30 })
     .$type<VideoPromptStatus>()
-    .default('idle')
+    .default('scripting' as VideoPromptStatus)
     .notNull(),
+
+  // Scene Data (JSONB array)
+  scenesData: jsonb('scenes_data').$type<DirectorState['scenes']>().notNull().$defaultFn(() => []),
+
+  // Conversation Context (for YELLOW flow)
+  conversationHistory: jsonb('conversation_history').default('[]'),
 
   // Remastered image URL (if quality was below threshold)
   remasteredImageUrl: text('remastered_image_url'),
 
-  // External API tracking
-  klingJobId: varchar('kling_job_id', { length: 100 }),
+  // External API tracking (supports all engines: Kling, Luma, Gemini Pro)
+  externalJobId: varchar('external_job_id', { length: 100 }),
 
   // Cost tracking
   creditsUsed: numeric('credits_used', { precision: 10, scale: 2 }).default('0'),
@@ -420,7 +441,7 @@ export const visionJobVideoPrompts = pgTable('vision_job_video_prompts', {
   // P0 Critical: Index on foreign key
   jobIdIdx: index('idx_video_prompts_job_id').on(table.jobId),
   statusIdx: index('idx_video_prompts_status').on(table.status),
-  klingJobIdIdx: index('idx_video_prompts_kling_job_id').on(table.klingJobId),
+  engineIdx: index('idx_video_prompts_engine').on(table.productionEngine),
 }));
 
 // =============================================================================

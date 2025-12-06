@@ -9,10 +9,10 @@
  */
 
 import { TRPCError } from '@trpc/server';
-import { db } from '../../drizzle/db';
-import { rateLimitBuckets } from '../../drizzle/schema';
+import { db } from './db';
+import { rateLimitBuckets } from '@/types/schema';
 import { eq, and, gte, sql } from 'drizzle-orm';
-import { RATE_LIMITS } from '../../types';
+import { RATE_LIMITS } from '@/types';
 
 // =============================================================================
 // TYPES

@@ -5,7 +5,8 @@
  */
 
 import { createClient } from '@supabase/supabase-js';
-import type { Database } from '../types/database';
+// Note: Database type generation moved to Drizzle schema
+// import type { Database } from '../types/database';
 
 // =============================================================================
 // ENVIRONMENT VALIDATION
@@ -31,7 +32,7 @@ if (!supabaseAnonKey) {
  * Public Supabase client (for browser/client-side)
  * Uses anon key with RLS policies
  */
-export const supabase = createClient<Database>(supabaseUrl, supabaseAnonKey, {
+export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   auth: {
     autoRefreshToken: true,
     persistSession: true,
@@ -53,7 +54,7 @@ export function createServiceClient() {
     throw new Error('Missing SUPABASE_SERVICE_ROLE_KEY environment variable');
   }
 
-  return createClient<Database>(supabaseUrl!, supabaseServiceRoleKey, {
+  return createClient(supabaseUrl!, supabaseServiceRoleKey, {
     auth: {
       autoRefreshToken: false,
       persistSession: false,

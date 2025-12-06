@@ -7,7 +7,7 @@
  * @version 3.0.0
  */
 
-import { VALIDATION } from '../../types';
+import { VALIDATION } from '@/types';
 import crypto from 'crypto';
 
 // =============================================================================
@@ -176,7 +176,7 @@ export function sanitizeFilename(filename: string): string {
  */
 function getExtension(filename: string): string {
   const parts = filename.split('.');
-  return parts.length > 1 ? parts[parts.length - 1] : '';
+  return parts.length > 1 ? (parts[parts.length - 1] || '') : '';
 }
 
 // =============================================================================

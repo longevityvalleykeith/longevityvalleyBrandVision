@@ -32,7 +32,7 @@ const supabase = createClient(supabaseUrl, supabaseServiceKey, {
 // STORAGE CONFIGURATION
 // =============================================================================
 
-const STORAGE_BUCKET = 'vision-uploads';
+const STORAGE_BUCKET = process.env.STORAGE_BUCKET || 'brand-assets';
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
 
 // =============================================================================

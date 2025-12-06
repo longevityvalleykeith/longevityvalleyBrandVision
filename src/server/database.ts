@@ -73,7 +73,7 @@ export interface VisionJob {
   
   // Analysis Results
   status: VisionJobStatus;
-  analysis_data: GeminiAnalysisOutput | null;
+  gemini_output: GeminiAnalysisOutput | null;
   
   // Scores
   physics_score: number | null;

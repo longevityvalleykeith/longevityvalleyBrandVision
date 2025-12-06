@@ -43,7 +43,7 @@ export async function createContext({ req, res }: CreateNextContextOptions) {
 
       user = await db.query.users.findFirst({
         where: eq(users.id, userId),
-      });
+      }) || null;
 
       if (!user || user.deletedAt) {
         userId = null;
@@ -132,7 +132,7 @@ const generateRateLimit = middleware(async ({ ctx, next }) => {
   const { checkRateLimit, RATE_LIMITS } = await import('./server/middleware/rateLimit');
 
   const identifier = ctx.userId || ctx.req?.socket?.remoteAddress || 'anonymous';
-  await checkRateLimit(identifier, RATE_LIMITS['generate']);
+  await checkRateLimit(identifier, RATE_LIMITS['generate']!);
 
   return next();
 });
@@ -148,7 +148,7 @@ const refineRateLimit = middleware(async ({ ctx, next }) => {
   const { checkRateLimit, RATE_LIMITS } = await import('./server/middleware/rateLimit');
 
   const identifier = ctx.userId || ctx.req?.socket?.remoteAddress || 'anonymous';
-  await checkRateLimit(identifier, RATE_LIMITS['refine']);
+  await checkRateLimit(identifier, RATE_LIMITS['refine']!);
 
   return next();
 });
@@ -164,7 +164,7 @@ const uploadRateLimit = middleware(async ({ ctx, next }) => {
   const { checkRateLimit, RATE_LIMITS } = await import('./server/middleware/rateLimit');
 
   const identifier = ctx.userId || ctx.req?.socket?.remoteAddress || 'anonymous';
-  await checkRateLimit(identifier, RATE_LIMITS['upload']);
+  await checkRateLimit(identifier, RATE_LIMITS['upload']!);
 
   return next();
 });

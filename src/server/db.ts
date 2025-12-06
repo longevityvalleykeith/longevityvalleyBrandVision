@@ -13,13 +13,18 @@ import * as schema from '../types/schema';
 // DATABASE CONNECTION
 // =============================================================================
 
-const connectionString = process.env.DATABASE_URL || '';
+let connectionString = process.env.DATABASE_URL || '';
 
 if (!connectionString) {
   throw new Error('DATABASE_URL environment variable is required');
 }
 
+// Strip unsupported query parameters (e.g., ?pgbouncer=true)
+// The postgres client doesn't recognize these, but Supabase includes them in the URL
+connectionString = connectionString.replace(/\?pgbouncer=true/g, '');
+
 const queryClient = postgres(connectionString, {
+  prepare: false, // CRITICAL: Required for Supabase Transaction Mode (Port 6543 pgbouncer)
   max: parseInt(process.env.DATABASE_POOL_SIZE || '10', 10),
   idle_timeout: 20,
   connect_timeout: 10,

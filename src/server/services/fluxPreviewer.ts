@@ -8,7 +8,7 @@
  * @version 3.0.0
  */
 
-import type { VideoScene } from '../../types';
+import type { VideoScene } from '@/types';
 
 // =============================================================================
 // CONFIGURATION

@@ -8,7 +8,7 @@
  * @version 3.0.0
  */
 
-import type { GeminiAnalysisOutput } from '../../types';
+import type { GeminiAnalysisOutput } from '@/types';
 
 // =============================================================================
 // FRONTEND TYPES

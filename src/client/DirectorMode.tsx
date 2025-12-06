@@ -9,12 +9,12 @@
  */
 
 import React, { useState, useCallback, useMemo } from 'react';
-import type { 
-  DirectorState, 
-  VideoScene, 
+import type {
+  DirectorState,
+  VideoScene,
   TrafficLightStatus,
   RefineAction,
-} from '../../types';
+} from '@/types';
 import { DirectorErrorBoundary } from './ErrorBoundary';
 
 // =============================================================================

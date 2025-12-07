@@ -79,16 +79,33 @@ export default function BrandScanner() {
   }, [getJobQuery.data]);
 
   /**
-   * Core upload function that takes a file directly
-   * This eliminates state race conditions
+   * Handle file upload with optional file override
+   * Accepts fileOverride to bypass state latency
    */
-  const uploadFile = useCallback(async (file: File) => {
-    console.log('✅ File Captured in State:', file.name);
-    console.log('📁 File Object:', file);
+  const handleUpload = useCallback(async (fileOverride?: File | React.MouseEvent) => {
+    // Guard against Event objects being passed (e.g., from onClick handlers)
+    const validFile = fileOverride instanceof Blob ? fileOverride : undefined;
+
+    // Use override if provided, otherwise fall back to state
+    const activeFile = validFile || selectedFile;
+
+    if (!activeFile) {
+      console.error('❌ No file available to upload');
+      return;
+    }
+
+    // Runtime validation before FileReader
+    if (!(activeFile instanceof Blob)) {
+      console.error('❌ Invalid file type:', activeFile);
+      return;
+    }
+
+    console.log('✅ File Captured:', activeFile.name);
+    console.log('📁 File Object:', activeFile);
     console.log('📊 File Details:', {
-      name: file.name,
-      type: file.type,
-      size: file.size,
+      name: activeFile.name,
+      type: activeFile.type,
+      size: activeFile.size,
     });
 
     console.log('⏳ Setting isUploading to true...');
@@ -122,14 +139,15 @@ export default function BrandScanner() {
       }
 
       console.log('🚀 Calling uploadMutation.mutate with:', {
-        filename: file.name,
-        mimeType: file.type,
+        filename: activeFile.name,
+        mimeType: activeFile.type,
         dataLength: base64Data.length,
       });
 
+      // Send clean object to mutation
       uploadMutation.mutate({
-        filename: file.name,
-        mimeType: file.type,
+        filename: activeFile.name,
+        mimeType: activeFile.type,
         data: base64Data,
       });
 
@@ -142,16 +160,17 @@ export default function BrandScanner() {
     };
 
     console.log('📂 Starting FileReader.readAsDataURL...');
-    reader.readAsDataURL(file);
-  }, [uploadMutation]);
+    reader.readAsDataURL(activeFile);
+  }, [selectedFile, uploadMutation]);
 
   /**
    * Handle file selection from dropzone
-   * Now immediately uploads the file to avoid state race conditions
+   * Passes file directly to handleUpload to bypass state latency
    */
   const handleFileSelect = useCallback((file: File) => {
     console.log('🎯 handleFileSelect called with file:', file.name);
 
+    // Update UI state
     setSelectedFile(file);
 
     // Create preview
@@ -164,24 +183,9 @@ export default function BrandScanner() {
     // Clear previous analysis
     setAnalysisData(null);
 
-    // Immediately upload the file (no race condition!)
-    uploadFile(file);
-  }, [uploadFile]);
-
-  /**
-   * Handle manual upload button click
-   * Uses the selectedFile state
-   */
-  const handleUpload = useCallback(async () => {
-    console.log('🖱️ Upload Button Clicked');
-
-    if (!selectedFile) {
-      console.warn('⚠️ No selectedFile - cannot upload');
-      return;
-    }
-
-    uploadFile(selectedFile);
-  }, [selectedFile, uploadFile]);
+    // PASS DIRECTLY - Do not wait for state
+    handleUpload(file);
+  }, [handleUpload]);
 
   /**
    * Retry failed analysis

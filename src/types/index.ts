@@ -83,9 +83,27 @@ export interface GeminiAnalysisOutput {
     focal_points: string[];
     style_keywords: string[];
   };
+  // Legacy scores (kept for backwards compatibility)
   quality_score: number; // 0-10
   integrity_score: number; // 0-1
+
+  // Proprietary Scoring Matrix (The Trinity)
+  physics_score: number; // 0-10: Motion complexity, camera movement potential, dynamic elements
+  vibe_score: number; // 0-10: Emotional resonance, aesthetic appeal, brand alignment
+  logic_score: number; // 0-10: Narrative clarity, message coherence, call-to-action strength
+
+  // Scoring rationale (brief explanations for each score)
+  scoring_rationale?: {
+    physics: string;
+    vibe: string;
+    logic: string;
+  };
+
+  // Director Commentary - Film Director style explanation of routing decision
+  director_commentary?: string;
+
   recommended_style_id?: string;
+  recommended_engine?: 'kling' | 'luma'; // Based on physics vs vibe scores
 }
 
 // =============================================================================

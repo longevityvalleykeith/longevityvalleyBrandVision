@@ -57,6 +57,28 @@ export interface BrandAnalysisData {
     integrity: number;
   };
 
+  /** Proprietary Scoring Matrix (The Trinity) */
+  proprietaryScores?: {
+    /** Physics score (0-10): Motion complexity, realism */
+    physics: number;
+    /** Vibe score (0-10): Emotional resonance, aesthetic */
+    vibe: number;
+    /** Logic score (0-10): Narrative clarity, brand safety */
+    logic: number;
+    /** Scoring rationale explanations */
+    rationale?: {
+      physics: string;
+      vibe: string;
+      logic: string;
+    };
+  };
+
+  /** Director Commentary - Film Director style explanation of routing decision */
+  directorCommentary?: string;
+
+  /** Recommended video production engine */
+  recommendedEngine?: 'kling' | 'luma';
+
   /** Recommended style preset ID (if applicable) */
   recommendedStyleId?: string;
 
@@ -129,7 +151,7 @@ export function transformVisionJobToAnalysisData(
   }
 
   // Transform gemini output to frontend format
-  return {
+  const result: BrandAnalysisData = {
     jobId,
     imageUrl,
     status,
@@ -149,9 +171,27 @@ export function transformVisionJobToAnalysisData(
       integrity: geminiOutput.integrity_score || 0,
     },
     recommendedStyleId: geminiOutput.recommended_style_id,
+    recommendedEngine: geminiOutput.recommended_engine,
     createdAt: createdAt || new Date(),
     processedAt: processedAt || undefined,
   };
+
+  // Add proprietary scores if available
+  if (geminiOutput.physics_score !== undefined) {
+    result.proprietaryScores = {
+      physics: geminiOutput.physics_score,
+      vibe: geminiOutput.vibe_score,
+      logic: geminiOutput.logic_score,
+      rationale: geminiOutput.scoring_rationale,
+    };
+  }
+
+  // Add director commentary if available
+  if (geminiOutput.director_commentary) {
+    result.directorCommentary = geminiOutput.director_commentary;
+  }
+
+  return result;
 }
 
 /**

@@ -1,6 +1,6 @@
 # Architecture Snapshot
 
-**Generated**: 2025-12-06T14:51:19.294Z
+**Generated**: 2025-12-06T19:06:31.345Z
 **Project**: Longevity Valley Brand Content Factory
 **Phase**: 3B + 3C (Brand Analysis + Video Director Mode)
 
@@ -60,7 +60,9 @@
     │       ├── 0000_steep_human_robot.sql
     │       └── 0001_fix_schema_sync.sql
     ├── scripts
+    │   ├── add-processing-enum.mjs
     │   ├── consult-cto.ts
+    │   ├── debug-latest-job.ts
     │   ├── generate-arch-report.ts
     │   ├── run-migration-now.ts
     │   ├── sentinel.ts
@@ -128,7 +130,8 @@
     │   │   ├── 001_initial_schema.sql
     │   │   ├── 002_rls_policies.sql
     │   │   ├── 003_storage_buckets.sql
-    │   │   └── 004_seed_data.sql
+    │   │   ├── 004_seed_data.sql
+    │   │   └── 20251206_add_processing_status.sql
     │   ├── .DS_Store
     │   └── config.toml
     ├── .DS_Store
@@ -185,17 +188,17 @@
   "dependencies": {
     "@google/generative-ai": "^0.24.1",
     "@supabase/supabase-js": "^2.86.0",
-    "@tanstack/react-query": "^5.17.0",
-    "@trpc/client": "^11.0.0-next.0",
-    "@trpc/react-query": "^11.0.0-next.0",
-    "@trpc/server": "^11.0.0-next.0",
+    "@tanstack/react-query": "^5.90.11",
+    "@trpc/client": "^11.7.2",
+    "@trpc/react-query": "^11.7.2",
+    "@trpc/server": "^11.7.2",
     "dotenv": "^17.2.3",
     "drizzle-orm": "^0.44.7",
-    "next": "^14.1.0",
+    "next": "^14.2.33",
     "openai": "^4.24.0",
     "postgres": "^3.4.7",
-    "react": "^18.2.0",
-    "react-dom": "^18.2.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
     "superjson": "^2.2.1",
     "uuid": "^9.0.0",
     "zod": "^3.22.4"
@@ -209,7 +212,7 @@
     "@typescript-eslint/parser": "^6.0.0",
     "drizzle-kit": "^0.31.8",
     "eslint": "^8.0.0",
-    "eslint-config-next": "^14.1.0",
+    "eslint-config-next": "^14.2.33",
     "glob": "^13.0.0",
     "husky": "^9.1.7",
     "tsx": "^4.21.0",

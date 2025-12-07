@@ -473,20 +473,27 @@ async function processVisionAnalysis(jobId: string): Promise<void> {
       .set({ status: 'processing' })
       .where(eq(visionJobs.id, jobId));
 
-    // Perform AI analysis
+    // Perform AI analysis with Proprietary Scoring Matrix
     const analysis = await analyzeBrandImage(job.imageUrl);
 
-    // Update job with analysis results
+    // Update job with analysis results including proprietary scores
     await db
       .update(visionJobs)
       .set({
         status: 'completed',
         geminiOutput: analysis,
+        // Denormalized proprietary scores for efficient routing queries
+        physicsScore: String(analysis.physics_score),
+        vibeScore: String(analysis.vibe_score),
+        logicScore: String(analysis.logic_score),
+        integrityScore: String(analysis.integrity_score),
         processedAt: new Date(),
       })
       .where(eq(visionJobs.id, jobId));
 
     console.log(`[Vision Service] Analysis completed for job: ${jobId}`);
+    console.log(`[Vision Service] Proprietary Scores - Physics: ${analysis.physics_score}, Vibe: ${analysis.vibe_score}, Logic: ${analysis.logic_score}`);
+    console.log(`[Vision Service] Recommended Engine: ${analysis.recommended_engine}`);
   } catch (error) {
     console.error(`[Vision Service] Analysis error for job ${jobId}:`, error);
 

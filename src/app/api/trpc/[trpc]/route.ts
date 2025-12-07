@@ -18,6 +18,17 @@ async function handler(req: Request) {
   console.log('📊 Method:', req.method);
   console.log('🕐 Timestamp:', new Date().toISOString());
 
+  // Debug: Clone request and log body
+  const clonedReq = req.clone();
+  try {
+    const bodyText = await clonedReq.text();
+    console.log('📦 Request Body Length:', bodyText.length);
+    console.log('📦 Request Body Preview:', bodyText.substring(0, 500));
+    console.log('📦 Content-Type:', req.headers.get('content-type'));
+  } catch (e) {
+    console.log('📦 Could not read body:', e);
+  }
+
   try {
     return await fetchRequestHandler({
       endpoint: '/api/trpc',

@@ -63,10 +63,10 @@ export function createQueryClient() {
 
 export function createTRPCClient(opts: { url: string; getAuthToken?: () => string | null }) {
   return trpc.createClient({
-    transformer: superjson,
     links: [
       httpLink({
         url: opts.url,
+        transformer: superjson,
         headers: () => {
           const headers: Record<string, string> = {};
 

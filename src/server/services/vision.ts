@@ -188,8 +188,11 @@ Return ONLY valid JSON.`;
  * @param imageUrl - Public URL of the brand image
  * @returns Raw pixel analysis (objective, cacheable)
  */
-export async function analyzeRawPixels(imageUrl: string): Promise<RawPixelAnalysis> {
+export async function analyzeRawPixels(imageUrl: string, brandContext?: string): Promise<RawPixelAnalysis> {
   console.log('[Vision Service] THE EYE: Starting raw pixel analysis...');
+  if (brandContext) {
+    console.log('[Vision Service] THE EYE: Brand context will enhance analysis');
+  }
 
   try {
     // Fetch image as base64
@@ -219,8 +222,21 @@ export async function analyzeRawPixels(imageUrl: string): Promise<RawPixelAnalys
 
     console.log('[Vision Service] THE EYE: Sending to Gemini 2.5 Flash...');
 
+    // Build enhanced prompt with brand context if provided
+    let analysisPrompt = RAW_ANALYSIS_PROMPT;
+    if (brandContext) {
+      analysisPrompt = `${RAW_ANALYSIS_PROMPT}
+
+## BRAND CONTEXT (User-Provided)
+The user has provided the following context about this brand/product. Use this to enhance your analysis:
+
+${brandContext}
+
+Incorporate this context when assessing mood, industry, and message clarity (logic score). The visual analysis should be enriched by understanding what the product is and who it's for.`;
+    }
+
     // Generate objective analysis
-    const result = await getModel().generateContent([RAW_ANALYSIS_PROMPT, ...imageParts]);
+    const result = await getModel().generateContent([analysisPrompt, ...imageParts]);
     const response = await result.response;
     const text = response.text();
 
@@ -475,7 +491,8 @@ export async function generateDirectorPitch(
  */
 export async function analyzeBrandImage(
   imageUrl: string,
-  directorId: string = DEFAULT_DIRECTOR_ID
+  directorId: string = DEFAULT_DIRECTOR_ID,
+  brandContext?: string
 ): Promise<GeminiAnalysisOutput> {
   const director = getDirectorById(directorId);
 
@@ -488,8 +505,15 @@ export async function analyzeBrandImage(
   console.log(`📊 Bias Profile: Physics=${director.biases.physicsMultiplier}x | Vibe=${director.biases.vibeMultiplier}x | Logic=${director.biases.logicMultiplier}x`);
   console.log(`${'#'.repeat(60)}\n`);
 
+  // Log brand context if provided
+  if (brandContext) {
+    console.log(`📝 Brand Context Provided:`);
+    console.log(brandContext);
+    console.log(`${'#'.repeat(60)}\n`);
+  }
+
   // Step 1: THE EYE
-  const rawAnalysis = await analyzeRawPixels(imageUrl);
+  const rawAnalysis = await analyzeRawPixels(imageUrl, brandContext);
 
   // Step 2: THE VOICE
   const pitch = await generateDirectorPitch(rawAnalysis, directorId);

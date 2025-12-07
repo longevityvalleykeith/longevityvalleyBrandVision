@@ -36,6 +36,15 @@ const UploadImageSchema = z.object({
   mimeType: z.string(),
   /** Base64 encoded file data */
   data: z.string(),
+  /** Optional brand context for enhanced analysis */
+  brandContext: z.object({
+    productInfo: z.string().optional(),
+    sellingPoints: z.string().optional(),
+    targetAudience: z.string().optional(),
+    painPoints: z.string().optional(),
+    scenarios: z.string().optional(),
+    ctaOffer: z.string().optional(),
+  }).optional(),
 });
 
 const GetJobSchema = z.object({
@@ -101,6 +110,33 @@ export const visionRouter = router({
           systemUser.id
         );
 
+        // Build brand essence prompt from context
+        let brandEssencePrompt: string | undefined;
+        if (input.brandContext) {
+          const contextParts: string[] = [];
+          if (input.brandContext.productInfo) {
+            contextParts.push(`Product: ${input.brandContext.productInfo}`);
+          }
+          if (input.brandContext.sellingPoints) {
+            contextParts.push(`Key Benefits: ${input.brandContext.sellingPoints}`);
+          }
+          if (input.brandContext.targetAudience) {
+            contextParts.push(`Target Audience: ${input.brandContext.targetAudience}`);
+          }
+          if (input.brandContext.painPoints) {
+            contextParts.push(`Pain Points Addressed: ${input.brandContext.painPoints}`);
+          }
+          if (input.brandContext.scenarios) {
+            contextParts.push(`Use Cases: ${input.brandContext.scenarios}`);
+          }
+          if (input.brandContext.ctaOffer) {
+            contextParts.push(`Promotion/CTA: ${input.brandContext.ctaOffer}`);
+          }
+          if (contextParts.length > 0) {
+            brandEssencePrompt = contextParts.join('\n');
+          }
+        }
+
         // Insert Vision Job
         const [result] = await db.insert(visionJobs).values({
           userId: systemUser.id,
@@ -109,6 +145,7 @@ export const visionRouter = router({
           mimeType: validatedFile.mimeType,
           fileSize: validatedFile.size,
           status: 'pending',
+          brandEssencePrompt,
         }).returning();
 
         if (!result) {
@@ -458,8 +495,12 @@ async function processVisionAnalysis(jobId: string): Promise<void> {
       .set({ status: 'processing' })
       .where(eq(visionJobs.id, jobId));
 
-    // Perform AI analysis with Proprietary Scoring Matrix
-    const analysis = await analyzeBrandImage(job.imageUrl);
+    // Perform AI analysis with Proprietary Scoring Matrix and brand context
+    const analysis = await analyzeBrandImage(
+      job.imageUrl,
+      undefined, // Use default Director
+      job.brandEssencePrompt || undefined // Pass brand context if available
+    );
 
     // Update job with analysis results including proprietary scores
     // NOTE: Gemini returns scores 0-10, but DB constraint expects 0-1 (normalized)

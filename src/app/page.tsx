@@ -31,7 +31,7 @@ export default function Home() {
               <li>✓ Style reference generation</li>
             </ul>
             <a
-              href="/vision"
+              href="/studio"
               className="block w-full text-center bg-gradient-to-r from-purple-500 to-pink-500 text-white font-semibold py-3 px-6 rounded-lg hover:from-purple-600 hover:to-pink-600 transition"
             >
               Start Analysis
@@ -54,7 +54,7 @@ export default function Home() {
               <li>✓ Multi-engine production (Kling/Luma/Gemini)</li>
             </ul>
             <a
-              href="/director"
+              href="/lounge"
               className="block w-full text-center bg-gradient-to-r from-blue-500 to-cyan-500 text-white font-semibold py-3 px-6 rounded-lg hover:from-blue-600 hover:to-cyan-600 transition"
             >
               Launch Director

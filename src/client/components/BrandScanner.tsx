@@ -2,10 +2,14 @@
  * BrandScanner Component
  *
  * Production-ready brand image analysis interface.
- * Features accessible file upload, real-time status updates, and comprehensive error handling.
+ * Features accessible file upload, brand context form, real-time status updates,
+ * and comprehensive error handling.
+ *
+ * Phase 3 Enhancement: Added BrandContextForm for user-provided context
+ * to enhance Brand DNA extraction accuracy.
  *
  * @module client/components/BrandScanner
- * @version 3.0.0
+ * @version 3.1.0
  */
 
 import { useState, useCallback, useEffect } from 'react';
@@ -13,6 +17,7 @@ import { trpc } from '@/lib/trpc';
 import type { BrandAnalysisData } from '@/server/utils/visionAdapter';
 import FileDropzone from './FileDropzone';
 import CircularProgress from './CircularProgress';
+import BrandContextForm, { type BrandContext } from './BrandContextForm';
 import { useAuth } from '@/client/useAuth';
 
 export default function BrandScanner() {
@@ -21,6 +26,8 @@ export default function BrandScanner() {
   const [analysisData, setAnalysisData] = useState<BrandAnalysisData | null>(null);
   const [isUploading, setIsUploading] = useState(false);
   const [isAuthReady, setIsAuthReady] = useState(false);
+  const [brandContext, setBrandContext] = useState<BrandContext | null>(null);
+  const [showContextForm, setShowContextForm] = useState(true);
 
   const { isAuthenticated, ensureSystemUser, getAccessToken } = useAuth();
 
@@ -125,6 +132,7 @@ export default function BrandScanner() {
         filename: activeFile.name,
         mimeType: activeFile.type,
         data: base64Data,
+        brandContext: brandContext || undefined,
       });
     };
 
@@ -159,6 +167,18 @@ export default function BrandScanner() {
   }, [handleUpload]);
 
   /**
+   * Handle brand context form changes
+   */
+  const handleContextChange = useCallback((context: BrandContext) => {
+    setBrandContext(context);
+  }, []);
+
+  /**
+   * Check if minimum required context is provided
+   */
+  const hasRequiredContext = brandContext?.productInfo?.trim() && brandContext?.sellingPoints?.trim();
+
+  /**
    * Retry failed analysis
    */
   const handleRetry = useCallback(() => {
@@ -167,38 +187,92 @@ export default function BrandScanner() {
   }, [handleUpload]);
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 sm:gap-8">
-      {/* Upload Section */}
-      <div className="bg-white rounded-2xl shadow-xl p-6 sm:p-8">
-        <h2 className="text-xl sm:text-2xl font-bold text-gray-900 mb-4 sm:mb-6">
-          Upload Image
-        </h2>
-
-        {/* File Dropzone */}
-        <FileDropzone
-          onFileSelect={handleFileSelect}
-          preview={preview}
-          disabled={isUploading}
-          className="mb-4 sm:mb-6"
-        />
-
+    <div className="space-y-6 sm:space-y-8">
+      {/* Brand Context Form - Collapsible */}
+      <div className="bg-white rounded-2xl shadow-xl overflow-hidden">
         <button
-          onClick={handleUpload}
-          disabled={isUploading}
-          className={`
-            w-full py-3 sm:py-4 px-6 rounded-xl font-semibold text-white
-            transition-all duration-200 ease-in-out
-            ${
-              isUploading
-                ? 'bg-gray-300 cursor-not-allowed'
-                : 'bg-purple-600 hover:bg-purple-700 active:scale-[0.98] shadow-lg hover:shadow-xl'
-            }
-          `}
-          aria-label={isUploading ? 'Analyzing...' : 'Analyze Brand'}
+          onClick={() => setShowContextForm(!showContextForm)}
+          className="w-full px-6 py-4 flex items-center justify-between bg-gradient-to-r from-purple-50 to-blue-50 hover:from-purple-100 hover:to-blue-100 transition-colors"
         >
-          {isUploading ? 'Analyzing...' : 'Analyze Brand'}
+          <div className="flex items-center gap-3">
+            <span className="text-2xl">📝</span>
+            <div className="text-left">
+              <h2 className="text-lg font-bold text-gray-900">Brand Context</h2>
+              <p className="text-sm text-gray-600">
+                {hasRequiredContext ? 'Context provided' : 'Add details for better analysis'}
+              </p>
+            </div>
+          </div>
+          <svg
+            className={`w-5 h-5 text-gray-500 transition-transform ${showContextForm ? 'rotate-180' : ''}`}
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+          </svg>
         </button>
+
+        {showContextForm && (
+          <div className="p-6 sm:p-8 border-t border-gray-100">
+            <BrandContextForm
+              onChange={handleContextChange}
+              initialValues={brandContext || undefined}
+              isLoading={isUploading}
+              compact={false}
+            />
+          </div>
+        )}
       </div>
+
+      {/* Main Content Grid */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 sm:gap-8">
+        {/* Upload Section */}
+        <div className="bg-white rounded-2xl shadow-xl p-6 sm:p-8">
+          <h2 className="text-xl sm:text-2xl font-bold text-gray-900 mb-4 sm:mb-6">
+            Upload Brand Asset
+          </h2>
+
+          {/* File Dropzone */}
+          <FileDropzone
+            onFileSelect={handleFileSelect}
+            preview={preview}
+            disabled={isUploading}
+            className="mb-4 sm:mb-6"
+          />
+
+          <button
+            onClick={handleUpload}
+            disabled={isUploading || !selectedFile}
+            className={`
+              w-full py-3 sm:py-4 px-6 rounded-xl font-semibold text-white
+              transition-all duration-200 ease-in-out
+              ${
+                isUploading || !selectedFile
+                  ? 'bg-gray-300 cursor-not-allowed'
+                  : 'bg-purple-600 hover:bg-purple-700 active:scale-[0.98] shadow-lg hover:shadow-xl'
+              }
+            `}
+            aria-label={isUploading ? 'Analyzing...' : 'Analyze Brand'}
+          >
+            {isUploading ? 'Analyzing...' : 'Analyze Brand'}
+          </button>
+
+          {/* Context Status Indicator */}
+          {selectedFile && (
+            <div className={`mt-4 p-3 rounded-lg text-sm ${hasRequiredContext ? 'bg-green-50 text-green-700' : 'bg-yellow-50 text-yellow-700'}`}>
+              {hasRequiredContext ? (
+                <span className="flex items-center gap-2">
+                  <span>✓</span> Brand context will enhance analysis
+                </span>
+              ) : (
+                <span className="flex items-center gap-2">
+                  <span>💡</span> Add brand context above for better results
+                </span>
+              )}
+            </div>
+          )}
+        </div>
 
       {/* Results Section */}
       <div className="bg-white rounded-2xl shadow-xl p-6 sm:p-8">
@@ -373,8 +447,93 @@ export default function BrandScanner() {
                 ))}
               </div>
             </div>
+
+            {/* Brand Integrity Health Check */}
+            <div className="mt-6 pt-6 border-t border-gray-200">
+              <h3 className="text-xs sm:text-sm font-semibold text-gray-500 uppercase mb-4">
+                Brand Integrity Check
+              </h3>
+              <div className="flex items-center gap-4">
+                {/* Integrity Score Circle */}
+                <div className={`relative w-20 h-20 rounded-full flex items-center justify-center ${
+                  analysisData.quality.integrity >= 0.8
+                    ? 'bg-green-100 border-4 border-green-500'
+                    : analysisData.quality.integrity >= 0.6
+                      ? 'bg-yellow-100 border-4 border-yellow-500'
+                      : 'bg-red-100 border-4 border-red-500'
+                }`}>
+                  <div className="text-center">
+                    <div className={`text-xl font-bold ${
+                      analysisData.quality.integrity >= 0.8
+                        ? 'text-green-700'
+                        : analysisData.quality.integrity >= 0.6
+                          ? 'text-yellow-700'
+                          : 'text-red-700'
+                    }`}>
+                      {Math.round(analysisData.quality.integrity * 100)}%
+                    </div>
+                  </div>
+                </div>
+
+                {/* Status Message */}
+                <div className="flex-1">
+                  <div className={`text-lg font-bold ${
+                    analysisData.quality.integrity >= 0.8
+                      ? 'text-green-700'
+                      : analysisData.quality.integrity >= 0.6
+                        ? 'text-yellow-700'
+                        : 'text-red-700'
+                  }`}>
+                    {analysisData.quality.integrity >= 0.8
+                      ? '✓ Brand Ready for Production'
+                      : analysisData.quality.integrity >= 0.6
+                        ? '⚠ Minor Adjustments Recommended'
+                        : '✗ Needs Brand Refinement'}
+                  </div>
+                  <p className="text-sm text-gray-600 mt-1">
+                    {analysisData.quality.integrity >= 0.8
+                      ? 'Your brand assets meet quality standards for video production.'
+                      : analysisData.quality.integrity >= 0.6
+                        ? 'Consider enhancing image quality or brand clarity.'
+                        : 'Upload higher quality brand assets for best results.'}
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* Brand Essence Summary */}
+            <div className="mt-4 p-4 bg-gradient-to-r from-indigo-50 to-purple-50 rounded-lg border border-indigo-100">
+              <h3 className="text-xs sm:text-sm font-semibold text-indigo-700 uppercase mb-3">
+                Brand Essence Analysis
+              </h3>
+              <div className="space-y-2 text-sm text-gray-700">
+                <p><strong>Industry:</strong> {analysisData.brandIdentity.industry || 'Detected automatically'}</p>
+                <p><strong>Mood:</strong> {analysisData.brandIdentity.mood}</p>
+                <p><strong>Visual Style:</strong> {analysisData.composition.styleKeywords.slice(0, 3).join(', ')}</p>
+              </div>
+            </div>
+
+            {/* CTA - Proceed to Director's Lounge */}
+            {analysisData.quality.integrity >= 0.6 && (
+              <div className="mt-6 pt-6 border-t border-gray-200">
+                <a
+                  href="/lounge"
+                  className="block w-full py-4 px-6 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white font-bold text-center rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 transform hover:-translate-y-1"
+                >
+                  <span className="flex items-center justify-center gap-3">
+                    <span className="text-xl">🎬</span>
+                    <span>Proceed to Director's Lounge</span>
+                    <span className="text-xl">→</span>
+                  </span>
+                  <span className="block text-sm font-normal opacity-80 mt-1">
+                    Meet 4 AI Directors & Create Your Video
+                  </span>
+                </a>
+              </div>
+            )}
           </div>
         )}
+      </div>
       </div>
     </div>
   );

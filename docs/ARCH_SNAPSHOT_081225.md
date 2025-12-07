@@ -1,6 +1,6 @@
 # Architecture Snapshot
 
-**Generated**: 2025-12-07T16:30:26.582Z
+**Generated**: 2025-12-07T23:20:40.796Z
 **Project**: Longevity Valley Brand Content Factory
 **Phase**: 3B + 3C (Brand Analysis + Video Director Mode)
 
@@ -56,23 +56,27 @@
     │   ├── ARCH_SNAPSHOT_051225.md
     │   ├── ARCH_SNAPSHOT_061225.md
     │   ├── ARCH_SNAPSHOT_071225.md
+    │   ├── ARCH_SNAPSHOT_081225.md
     │   ├── ARCH_SNAPSHOT.md
     │   ├── CHANGELOG_PHASE4_FIXES.md
     │   ├── CTO_TECHNICAL_REPORT_PHASE4.md
     │   ├── DIRECTOR_PERSONA_SCHEMA.md
+    │   ├── Longevity_Valley_Architecture_Specification_Comparison_v1.0_vs._v2.0.pdf
     │   ├── ROOT_CAUSE_ANALYSIS_AUDIT.md
     │   ├── SCHEMA_INTEGRITY_REPORT.md
     │   ├── SECURITY_VERIFICATION_REPORT.md
     │   ├── SECURITY.md
+    │   ├── TECHNICAL_CHANGELOG_PHASE4.md
     │   ├── TEST_REPORT.md
     │   └── VERIFICATION_REPORT_071225.md
     ├── drizzle
-    │   └── migrations
-    │       ├── meta
-    │       │   ├── _journal.json
-    │       │   └── 0000_snapshot.json
-    │       ├── 0000_steep_human_robot.sql
-    │       └── 0001_fix_schema_sync.sql
+    │   ├── migrations
+    │   │   ├── meta
+    │   │   │   ├── _journal.json
+    │   │   │   └── 0000_snapshot.json
+    │   │   ├── 0000_steep_human_robot.sql
+    │   │   └── 0001_fix_schema_sync.sql
+    │   └── .DS_Store
     ├── scripts
     │   ├── add-processing-enum.mjs
     │   ├── apply-phase4-migration.ts
@@ -113,9 +117,12 @@
     │   │   │   │   ├── DirectorGrid.tsx
     │   │   │   │   ├── index.ts
     │   │   │   │   └── TheLounge.tsx
+    │   │   │   ├── BrandContextForm.tsx
     │   │   │   ├── BrandScanner.tsx
     │   │   │   ├── CircularProgress.tsx
-    │   │   │   └── FileDropzone.tsx
+    │   │   │   ├── FileDropzone.tsx
+    │   │   │   ├── ScenePreviewCard.tsx
+    │   │   │   └── ScenePreviewGrid.tsx
     │   │   ├── DirectorMode.tsx
     │   │   ├── ErrorBoundary.tsx
     │   │   ├── useAuth.tsx
@@ -160,6 +167,7 @@
     │   ├── functions
     │   │   ├── tests
     │   │   │   └── director-flow.ts
+    │   │   ├── .DS_Store
     │   │   └── README.md
     │   ├── migrations
     │   │   ├── 001_initial_schema.sql
@@ -177,6 +185,8 @@
     ├── CHANGELOG.md
     ├── drizzle.config.ts
     ├── FINAL-DEV_SPEC_v2.md
+    ├── FINAL-TECH_SPEC_v3.md
+    ├── FINAL-TECH_SPEC_v4.md
     ├── next-env.d.ts
     ├── next.config.mjs
     ├── package-lock.json

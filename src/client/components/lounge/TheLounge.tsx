@@ -8,27 +8,34 @@
  * - IDLE: Waiting for upload
  * - ANALYZING: "The Directors are reviewing your asset..."
  * - PITCHING: Display 4 cards with scores and commentary
+ * - STORYBOARD: Display scene preview cards with traffic lights
  * - SELECTED: User selected a Director -> transition to Video Generation
  *
+ * Phase 3 Enhancement: Added ScenePreviewGrid with Traffic Light indicators
+ * for user-in-the-loop decision making.
+ *
  * @module client/components/lounge/TheLounge
- * @version 1.0.0
+ * @version 1.1.0
  */
 
 import React, { useState, useCallback } from 'react';
 import { DirectorGrid, DirectorGridSkeleton } from './DirectorGrid';
 import type { DirectorPitchData } from './DirectorCard';
+import ScenePreviewGrid from '../ScenePreviewGrid';
+import type { SceneData } from '../ScenePreviewCard';
+import BrandContextForm, { type BrandContext } from '../BrandContextForm';
 
 // =============================================================================
 // TYPES
 // =============================================================================
 
-type LoungeState = 'IDLE' | 'UPLOADING' | 'ANALYZING' | 'PITCHING' | 'SELECTED' | 'ERROR';
+type LoungeState = 'IDLE' | 'UPLOADING' | 'ANALYZING' | 'PITCHING' | 'STORYBOARD' | 'SELECTED' | 'ERROR';
 
 interface TheLoungeProps {
   /** Callback when a Director is selected */
   onDirectorSelected?: (directorId: string, imageUrl: string) => void;
   /** External analyze function (for tRPC integration) */
-  onAnalyze?: (imageUrl: string) => Promise<DirectorPitchData[]>;
+  onAnalyze?: (imageUrl: string, brandContext?: BrandContext) => Promise<DirectorPitchData[]>;
 }
 
 // =============================================================================
@@ -46,6 +53,17 @@ export function TheLounge({
   const [selectedDirectorId, setSelectedDirectorId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loadingDirectorId, setLoadingDirectorId] = useState<string | null>(null);
+  const [scenes, setScenes] = useState<SceneData[]>([]);
+  const [brandContext, setBrandContext] = useState<BrandContext | null>(null);
+  const [showContextForm, setShowContextForm] = useState(true);
+
+  // Handle brand context changes
+  const handleContextChange = useCallback((context: BrandContext) => {
+    setBrandContext(context);
+  }, []);
+
+  // Check if minimum context is provided
+  const hasRequiredContext = brandContext?.productInfo?.trim() && brandContext?.sellingPoints?.trim();
 
   // Handle file upload
   const handleFileChange = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -84,8 +102,8 @@ export function TheLounge({
       setState('ANALYZING');
 
       if (onAnalyze) {
-        // Use provided analyze function (tRPC)
-        const pitches = await onAnalyze(mockImageUrl);
+        // Use provided analyze function (tRPC) with brand context
+        const pitches = await onAnalyze(mockImageUrl, brandContext || undefined);
         setDirectors(pitches);
       } else {
         // Use mock data for development
@@ -100,7 +118,7 @@ export function TheLounge({
     }
   }, [onAnalyze]);
 
-  // Handle Director selection
+  // Handle Director selection - now transitions to STORYBOARD
   const handleSelectDirector = useCallback(async (directorId: string) => {
     setLoadingDirectorId(directorId);
     setSelectedDirectorId(directorId);
@@ -108,13 +126,41 @@ export function TheLounge({
     // Simulate processing
     await new Promise(resolve => setTimeout(resolve, 500));
 
-    setState('SELECTED');
-    setLoadingDirectorId(null);
+    // Generate mock scenes based on the selected director
+    const selectedDirector = directors.find(d => d.id === directorId);
+    const mockScenes = generateMockScenes(selectedDirector);
+    setScenes(mockScenes);
 
-    if (onDirectorSelected && imageUrl) {
-      onDirectorSelected(directorId, imageUrl);
+    setState('STORYBOARD');
+    setLoadingDirectorId(null);
+  }, [directors]);
+
+  // Handle scene approval
+  const handleApproveScene = useCallback((sceneId: string) => {
+    setScenes(prev => prev.map(scene =>
+      scene.id === sceneId ? { ...scene, status: 'GREEN' as const } : scene
+    ));
+  }, []);
+
+  // Handle scene refinement
+  const handleRefineScene = useCallback((sceneId: string, status: 'YELLOW' | 'RED', feedback?: string) => {
+    setScenes(prev => prev.map(scene =>
+      scene.id === sceneId ? { ...scene, status, userFeedback: feedback || null } : scene
+    ));
+  }, []);
+
+  // Handle approve all scenes
+  const handleApproveAll = useCallback(() => {
+    setScenes(prev => prev.map(scene => ({ ...scene, status: 'GREEN' as const })));
+  }, []);
+
+  // Proceed to production
+  const handleProceedToProduction = useCallback(() => {
+    setState('SELECTED');
+    if (onDirectorSelected && imageUrl && selectedDirectorId) {
+      onDirectorSelected(selectedDirectorId, imageUrl);
     }
-  }, [imageUrl, onDirectorSelected]);
+  }, [imageUrl, selectedDirectorId, onDirectorSelected]);
 
   // Reset to initial state
   const handleReset = useCallback(() => {
@@ -141,21 +187,59 @@ export function TheLounge({
 
       {/* Main Content */}
       <main className="lounge-content">
-        {/* IDLE State - Upload Zone */}
+        {/* IDLE State - Brand Context + Upload Zone */}
         {state === 'IDLE' && (
-          <div className="upload-zone">
-            <input
-              type="file"
-              id="brand-asset"
-              accept="image/jpeg,image/png,image/webp"
-              onChange={handleFileChange}
-              className="file-input"
-            />
-            <label htmlFor="brand-asset" className="upload-label">
-              <span className="upload-icon">📷</span>
-              <span className="upload-text">Drop your brand asset here</span>
-              <span className="upload-hint">JPEG, PNG, or WebP up to 10MB</span>
-            </label>
+          <div className="idle-state">
+            {/* Brand Context Form - Collapsible */}
+            <div className="context-form-section">
+              <button
+                onClick={() => setShowContextForm(!showContextForm)}
+                className="context-toggle-btn"
+              >
+                <div className="toggle-left">
+                  <span className="toggle-icon">📝</span>
+                  <div className="toggle-info">
+                    <span className="toggle-title">Brand Context</span>
+                    <span className="toggle-subtitle">
+                      {hasRequiredContext ? '✓ Context provided' : 'Add details for richer Director pitches'}
+                    </span>
+                  </div>
+                </div>
+                <span className={`toggle-arrow ${showContextForm ? 'open' : ''}`}>▼</span>
+              </button>
+
+              {showContextForm && (
+                <div className="context-form-wrapper">
+                  <BrandContextForm
+                    onChange={handleContextChange}
+                    initialValues={brandContext || undefined}
+                    isLoading={false}
+                    compact={false}
+                  />
+                </div>
+              )}
+            </div>
+
+            {/* Upload Zone */}
+            <div className="upload-zone">
+              <input
+                type="file"
+                id="brand-asset"
+                accept="image/jpeg,image/png,image/webp"
+                onChange={handleFileChange}
+                className="file-input"
+              />
+              <label htmlFor="brand-asset" className="upload-label">
+                <span className="upload-icon">📷</span>
+                <span className="upload-text">Drop your brand asset here</span>
+                <span className="upload-hint">JPEG, PNG, or WebP up to 10MB</span>
+                {hasRequiredContext && (
+                  <span className="context-ready-badge">
+                    ✓ Brand context will enhance Director pitches
+                  </span>
+                )}
+              </label>
+            </div>
           </div>
         )}
 
@@ -197,6 +281,50 @@ export function TheLounge({
               loadingId={loadingDirectorId || undefined}
             />
           </>
+        )}
+
+        {/* STORYBOARD State - Scene Preview Cards with Traffic Lights */}
+        {state === 'STORYBOARD' && selectedDirectorId && (
+          <div className="storyboard-state">
+            {/* Director Badge */}
+            <div className="director-badge">
+              <span className="badge-avatar">
+                {directors.find(d => d.id === selectedDirectorId)?.avatar}
+              </span>
+              <div className="badge-info">
+                <span className="badge-label">Directed by</span>
+                <span className="badge-name">
+                  {directors.find(d => d.id === selectedDirectorId)?.name}
+                </span>
+              </div>
+              <button onClick={() => setState('PITCHING')} className="change-director-btn">
+                Change Director
+              </button>
+            </div>
+
+            {/* Scene Preview Grid */}
+            <div className="scene-grid-wrapper">
+              <ScenePreviewGrid
+                scenes={scenes}
+                onApprove={handleApproveScene}
+                onRefine={handleRefineScene}
+                onApproveAll={handleApproveAll}
+                showPreview={true}
+                title="Storyboard Preview"
+                subtitle="Review each scene. Approve, request changes, or regenerate."
+              />
+            </div>
+
+            {/* Proceed to Production Button */}
+            {scenes.every(s => s.status === 'GREEN') && (
+              <div className="proceed-section">
+                <button onClick={handleProceedToProduction} className="proceed-button">
+                  <span className="proceed-icon">🎬</span>
+                  Proceed to Video Production
+                </button>
+              </div>
+            )}
+          </div>
         )}
 
         {/* SELECTED State - Confirmation */}
@@ -242,6 +370,49 @@ export function TheLounge({
 async function simulateAnalysis(): Promise<void> {
   // Simulate API delay
   await new Promise(resolve => setTimeout(resolve, 3000));
+}
+
+function generateMockScenes(director?: DirectorPitchData): SceneData[] {
+  const directorId = director?.id || 'newtonian';
+
+  const sceneTemplates: Record<string, { title: string; description: string }[]> = {
+    newtonian: [
+      { title: 'Opening Shot', description: 'Product descends into frame with realistic gravitational motion, subtle bounce on landing' },
+      { title: 'Feature Reveal', description: 'Camera orbits around product with physics-accurate depth blur and lighting' },
+      { title: 'Dynamic Action', description: 'Product interaction showcasing weight and material properties' },
+      { title: 'Call to Action', description: 'Logo emergence with particle effects following physical trajectories' },
+    ],
+    visionary: [
+      { title: 'Dream Sequence', description: 'Product emerges from ethereal mist with color-shifting iridescent glow' },
+      { title: 'Emotional Peak', description: 'Slow-motion transformation with morphing light trails' },
+      { title: 'Abstract Beauty', description: 'Product dissolves into artistic color waves and reforms' },
+      { title: 'Transcendent Close', description: 'Final frame blends product with cosmic imagery' },
+    ],
+    minimalist: [
+      { title: 'Clean Introduction', description: 'Product appears on pure white background, crisp edges' },
+      { title: 'Typography Focus', description: 'Key message animates with precise geometric timing' },
+      { title: 'Subtle Motion', description: 'Minimal camera movement, emphasis on negative space' },
+      { title: 'Brand Mark', description: 'Logo resolves with deliberate, confident simplicity' },
+    ],
+    provocateur: [
+      { title: 'Explosive Entry', description: 'Product bursts through reality barrier with glitch effects' },
+      { title: 'Rule Breaking', description: 'Unconventional angles and jarring cuts challenge expectations' },
+      { title: 'Chaos Peak', description: 'Maximum visual intensity with overlapping motion layers' },
+      { title: 'Defiant Close', description: 'Logo shatters and reassembles in unexpected formation' },
+    ],
+  };
+
+  const templates = sceneTemplates[directorId] ?? sceneTemplates['newtonian'];
+
+  return (templates ?? []).map((template, index) => ({
+    id: `scene-${directorId}-${index + 1}`,
+    sequenceIndex: index + 1,
+    title: template.title,
+    description: template.description,
+    status: 'PENDING' as const,
+    previewUrl: undefined,
+    userFeedback: null,
+  }));
 }
 
 function getMockDirectorPitches(): DirectorPitchData[] {
@@ -324,6 +495,125 @@ const loungeStyles = `
   .lounge-header {
     text-align: center;
     padding: 48px 24px 32px;
+  }
+
+  /* IDLE State Container */
+  .idle-state {
+    max-width: 800px;
+    margin: 0 auto;
+  }
+
+  /* Brand Context Form Section */
+  .context-form-section {
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 16px;
+    margin-bottom: 24px;
+    overflow: hidden;
+  }
+
+  .context-toggle-btn {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 20px;
+    background: transparent;
+    border: none;
+    color: white;
+    cursor: pointer;
+    transition: background 0.2s;
+  }
+
+  .context-toggle-btn:hover {
+    background: rgba(255, 255, 255, 0.05);
+  }
+
+  .toggle-left {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .toggle-icon {
+    font-size: 1.5rem;
+  }
+
+  .toggle-info {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 2px;
+  }
+
+  .toggle-title {
+    font-size: 1rem;
+    font-weight: 600;
+    color: white;
+  }
+
+  .toggle-subtitle {
+    font-size: 0.8rem;
+    color: rgba(255, 255, 255, 0.5);
+  }
+
+  .toggle-arrow {
+    font-size: 0.75rem;
+    color: rgba(255, 255, 255, 0.4);
+    transition: transform 0.2s;
+  }
+
+  .toggle-arrow.open {
+    transform: rotate(180deg);
+  }
+
+  .context-form-wrapper {
+    padding: 0 20px 20px;
+    border-top: 1px solid rgba(255, 255, 255, 0.05);
+    background: rgba(255, 255, 255, 0.02);
+  }
+
+  /* Override BrandContextForm styles for dark theme */
+  .context-form-wrapper .brand-context-form {
+    background: transparent;
+    padding: 20px 0 0;
+  }
+
+  .context-form-wrapper .form-section label {
+    color: rgba(255, 255, 255, 0.8);
+  }
+
+  .context-form-wrapper .form-section input,
+  .context-form-wrapper .form-section textarea {
+    background: rgba(255, 255, 255, 0.08);
+    border-color: rgba(255, 255, 255, 0.15);
+    color: white;
+  }
+
+  .context-form-wrapper .form-section input::placeholder,
+  .context-form-wrapper .form-section textarea::placeholder {
+    color: rgba(255, 255, 255, 0.4);
+  }
+
+  .context-form-wrapper .form-section input:focus,
+  .context-form-wrapper .form-section textarea:focus {
+    border-color: rgba(139, 92, 246, 0.5);
+    background: rgba(255, 255, 255, 0.1);
+  }
+
+  .context-form-wrapper .helper-text {
+    color: rgba(255, 255, 255, 0.5);
+  }
+
+  .context-ready-badge {
+    display: block;
+    margin-top: 12px;
+    padding: 6px 12px;
+    background: rgba(16, 185, 129, 0.2);
+    color: #34d399;
+    border-radius: 999px;
+    font-size: 0.75rem;
+    font-weight: 600;
   }
 
   .lounge-title {
@@ -543,6 +833,100 @@ const loungeStyles = `
 
   .retry-button:hover {
     background: #dc2626;
+  }
+
+  /* Storyboard State */
+  .storyboard-state {
+    max-width: 1200px;
+    margin: 0 auto;
+  }
+
+  .director-badge {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 16px 24px;
+    background: rgba(139, 92, 246, 0.1);
+    border: 1px solid rgba(139, 92, 246, 0.2);
+    border-radius: 12px;
+    margin-bottom: 32px;
+  }
+
+  .badge-avatar {
+    font-size: 2.5rem;
+  }
+
+  .badge-info {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .badge-label {
+    font-size: 0.75rem;
+    color: rgba(255, 255, 255, 0.5);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+
+  .badge-name {
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: white;
+  }
+
+  .change-director-btn {
+    padding: 8px 16px;
+    background: transparent;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    color: rgba(255, 255, 255, 0.6);
+    border-radius: 6px;
+    font-size: 0.875rem;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+
+  .change-director-btn:hover {
+    border-color: rgba(139, 92, 246, 0.5);
+    color: #a78bfa;
+  }
+
+  .scene-grid-wrapper {
+    background: rgba(255, 255, 255, 0.02);
+    border-radius: 16px;
+    padding: 24px;
+    border: 1px solid rgba(255, 255, 255, 0.05);
+  }
+
+  .proceed-section {
+    display: flex;
+    justify-content: center;
+    margin-top: 32px;
+  }
+
+  .proceed-button {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 16px 40px;
+    background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+    color: white;
+    border: none;
+    border-radius: 12px;
+    font-size: 1.125rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.2s;
+    box-shadow: 0 4px 20px rgba(16, 185, 129, 0.4);
+  }
+
+  .proceed-button:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 30px rgba(16, 185, 129, 0.5);
+  }
+
+  .proceed-icon {
+    font-size: 1.5rem;
   }
 `;
 

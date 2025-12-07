@@ -28,11 +28,25 @@ import {
 } from '@/config/directors';
 
 // =============================================================================
-// CONFIGURATION
+// CONFIGURATION (Lazy Initialization)
 // =============================================================================
 
-const genAI = new GoogleGenerativeAI(process.env['GEMINI_API_KEY'] || '');
-const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
+// Lazy initialization to ensure env vars are loaded before SDK init
+let _genAI: GoogleGenerativeAI | null = null;
+let _model: ReturnType<GoogleGenerativeAI['getGenerativeModel']> | null = null;
+
+function getModel() {
+  if (!_model) {
+    const apiKey = process.env['GEMINI_API_KEY'];
+    if (!apiKey || apiKey === 'xxx') {
+      throw new Error('GEMINI_API_KEY not configured');
+    }
+    _genAI = new GoogleGenerativeAI(apiKey);
+    _model = _genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
+    console.log('[Vision Service] Gemini SDK initialized with API key');
+  }
+  return _model;
+}
 
 // =============================================================================
 // STEP 1: THE EYE - Raw Pixel Analysis Prompt
@@ -96,7 +110,23 @@ Return ONLY valid JSON. No commentary.`;
 // =============================================================================
 
 function buildDirectorPitchPrompt(director: DirectorProfile, rawAnalysis: RawPixelAnalysis): string {
-  return `${director.systemPromptModifier}
+  // Determine the dominant bias for scoring emphasis
+  const biasEntries = Object.entries(director.biases) as [string, number][];
+  const dominantBias = biasEntries.find(([, value]) => value > 1)?.[0]?.replace('Multiplier', '') || 'balanced';
+
+  return `You are an AI Brand Analyst with a distinct personality.
+
+## CURRENT PERSONA
+${director.name}. ${director.systemPromptModifier}
+
+## TONE GUIDE
+Use words like [${director.voice.vocabulary.join(', ')}].
+Avoid words like [${director.voice.forbidden.join(', ')}].
+Speak with: ${director.voice.tone}
+
+## SCORING BIAS
+Weigh ${dominantBias.toUpperCase()} scores higher in your assessment.
+Your risk tolerance: ${director.riskProfile.label} (hallucination threshold: ${director.riskProfile.hallucinationThreshold})
 
 ## YOUR TASK
 Look at this raw image analysis and create YOUR pitch. Speak in your voice.
@@ -113,10 +143,6 @@ ${JSON.stringify({
     logic_score: rawAnalysis.logic_score,
     rationale: rawAnalysis.scoring_rationale,
   }, null, 2)}
-
-## YOUR VOCABULARY
-Preferred words: ${director.voice.vocabulary.join(', ')}
-Forbidden words: ${director.voice.forbidden.join(', ')}
 
 ## OUTPUT FORMAT
 Return JSON with your interpretation:
@@ -145,9 +171,6 @@ Return JSON with your interpretation:
     }
   }
 }
-
-## TONE
-${director.voice.tone}
 
 Return ONLY valid JSON.`;
 }
@@ -197,7 +220,7 @@ export async function analyzeRawPixels(imageUrl: string): Promise<RawPixelAnalys
     console.log('[Vision Service] THE EYE: Sending to Gemini 2.5 Flash...');
 
     // Generate objective analysis
-    const result = await model.generateContent([RAW_ANALYSIS_PROMPT, ...imageParts]);
+    const result = await getModel().generateContent([RAW_ANALYSIS_PROMPT, ...imageParts]);
     const response = await result.response;
     const text = response.text();
 
@@ -308,14 +331,24 @@ export async function generateDirectorPitch(
   directorId: string = DEFAULT_DIRECTOR_ID
 ): Promise<DirectorPitch> {
   const director = getDirectorById(directorId);
-  console.log(`[Vision Service] THE VOICE: ${director.name} is preparing their pitch...`);
+
+  // Operation Brain Transplant: Enhanced Director Logging
+  console.log(`\n${'='.repeat(60)}`);
+  console.log(`[Vision Service] THE VOICE: Director Activation`);
+  console.log(`${'='.repeat(60)}`);
+  console.log(`🎬 Active Director: ${director.name} (${director.archetype})`);
+  console.log(`📍 Quote: "${director.quote}"`);
+  console.log(`🎯 Preferred Engine: ${director.preferredEngine}`);
+  console.log(`⚠️  Risk Profile: ${director.riskProfile.label} (threshold: ${director.riskProfile.hallucinationThreshold})`);
+  console.log(`🧠 Biases: Physics=${director.biases.physicsMultiplier}x, Vibe=${director.biases.vibeMultiplier}x, Logic=${director.biases.logicMultiplier}x`);
+  console.log(`${'='.repeat(60)}\n`);
 
   try {
     // Build Director-specific prompt
     const prompt = buildDirectorPitchPrompt(director, rawAnalysis);
 
     // Generate pitch (text-only, no image needed)
-    const result = await model.generateContent(prompt);
+    const result = await getModel().generateContent(prompt);
     const response = await result.response;
     const text = response.text();
 
@@ -444,7 +477,16 @@ export async function analyzeBrandImage(
   imageUrl: string,
   directorId: string = DEFAULT_DIRECTOR_ID
 ): Promise<GeminiAnalysisOutput> {
-  console.log('[Vision Service] Starting Two-Step Architecture analysis...');
+  const director = getDirectorById(directorId);
+
+  // Operation Brain Transplant: Log active Director at entry point
+  console.log(`\n${'#'.repeat(60)}`);
+  console.log(`[Vision Service] TWO-STEP ARCHITECTURE ANALYSIS`);
+  console.log(`${'#'.repeat(60)}`);
+  console.log(`🎬 Active Director: ${director.name}`);
+  console.log(`🎯 Engine Preference: ${director.preferredEngine}`);
+  console.log(`📊 Bias Profile: Physics=${director.biases.physicsMultiplier}x | Vibe=${director.biases.vibeMultiplier}x | Logic=${director.biases.logicMultiplier}x`);
+  console.log(`${'#'.repeat(60)}\n`);
 
   // Step 1: THE EYE
   const rawAnalysis = await analyzeRawPixels(imageUrl);
@@ -586,7 +628,7 @@ export async function checkGeminiHealth(): Promise<{
       };
     }
 
-    const result = await model.generateContent('Respond with OK');
+    const result = await getModel().generateContent('Respond with OK');
     const text = result.response.text();
 
     return {

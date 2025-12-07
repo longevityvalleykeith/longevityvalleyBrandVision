@@ -68,6 +68,192 @@ export type ProductionEngine = 'KLING' | 'LUMA' | 'GEMINI_PRO';
 export type UserPlan = 'free' | 'pro' | 'enterprise';
 
 // =============================================================================
+// UNIVERSAL ADAPTER PATTERN (Multi-Domain Input)
+// =============================================================================
+
+/**
+ * Source types for the Universal Adapter
+ * Enables Legacy and Neuromorphic integration
+ */
+export type UniversalSourceType = 'IMAGE_UPLOAD' | 'LEGACY_SQL' | 'BIOMETRIC_SENSOR';
+
+/**
+ * Domain types for routing to appropriate scoring matrices
+ */
+export type UniversalDomain = 'BRAND' | 'HEALTH' | 'FINANCE';
+
+/**
+ * Universal Input - Standardized interface for all data sources
+ *
+ * Legacy Integration: Convert old SQL data into this format
+ * Neuromorphic Ready: Swap processing logic, keep interface identical
+ */
+export interface UniversalInput {
+  /** The type of data source */
+  sourceType: UniversalSourceType;
+  /** Raw payload from the source */
+  rawData: unknown;
+  /** Domain determines which scoring matrix to use */
+  domain: UniversalDomain;
+  /** Optional metadata about the source */
+  metadata?: {
+    sourceId?: string;
+    timestamp?: Date;
+    userId?: string;
+  };
+}
+
+/**
+ * Universal Analysis - Standardized output from The Eye
+ *
+ * Contains only objective facts, no interpretation
+ */
+export interface UniversalAnalysis {
+  /** Objective facts extracted from input (colors, vitals, revenue, etc.) */
+  objectiveFacts: Record<string, unknown>;
+  /** Confidence score for the analysis (0-1) */
+  integrityScore: number;
+  /** Domain-specific scores */
+  scores: {
+    /** Brand: Physics | Health: Biomarker | Finance: Risk */
+    primary: number;
+    /** Brand: Vibe | Health: Trend | Finance: Growth */
+    secondary: number;
+    /** Brand: Logic | Health: Urgency | Finance: Stability */
+    tertiary: number;
+  };
+  /** Rationale for each score */
+  rationale: {
+    primary: string;
+    secondary: string;
+    tertiary: string;
+  };
+  /** Timestamp of analysis */
+  analyzedAt: Date;
+}
+
+// =============================================================================
+// USER CREATIVE PROFILE (The Taste Profile)
+// =============================================================================
+
+/**
+ * User's creative bias vector
+ * Updated via Weighted Moving Average (recent choices matter more)
+ */
+export interface UserBiasVector {
+  /** Does user prefer realistic motion? (0-1) */
+  physicsAffinity: number;
+  /** Does user prefer abstract beauty? (0-1) */
+  vibeAffinity: number;
+  /** Does user accept AI hallucinations? (0-1) */
+  riskTolerance: number;
+  /** Does user prefer short commentary? (0-1) */
+  brevityPreference: number;
+}
+
+/**
+ * Director performance tracking for a user
+ */
+export interface DirectorPerformance {
+  wins: number;
+  losses: number;
+  streak: number;
+  lastSelected?: Date;
+}
+
+/**
+ * User Creative Profile - The evolving taste profile
+ *
+ * Stored as JSONB in user_preferences column
+ * Updated by the Studio Head after each selection
+ */
+export interface UserCreativeProfile {
+  /** The user this profile belongs to */
+  userId: string;
+
+  /** The bias vector (0-1 weights) */
+  biasVector: UserBiasVector;
+
+  /** Words that appeared in winning vs losing pitches */
+  vocabularyWeights: Record<string, number>;
+
+  /** Per-director win/loss tracking */
+  directorWinRate: Record<string, DirectorPerformance>;
+
+  /** Total selections made (for weighting calculations) */
+  totalSelections: number;
+
+  /** Profile version for migrations */
+  version: number;
+
+  /** Last updated timestamp */
+  updatedAt: Date;
+}
+
+/**
+ * Create a default UserCreativeProfile for new users
+ */
+export function createDefaultUserProfile(userId: string): UserCreativeProfile {
+  return {
+    userId,
+    biasVector: {
+      physicsAffinity: 0.5,
+      vibeAffinity: 0.5,
+      riskTolerance: 0.3,
+      brevityPreference: 0.5,
+    },
+    vocabularyWeights: {},
+    directorWinRate: {},
+    totalSelections: 0,
+    version: 1,
+    updatedAt: new Date(),
+  };
+}
+
+// =============================================================================
+// LEARNING EVENT (For Training Data Collection)
+// =============================================================================
+
+/**
+ * Learning Event - Captures user selection for training
+ *
+ * Stored in learning_events table for the Studio Head to process
+ */
+export interface LearningEvent {
+  /** Unique event ID */
+  id: string;
+  /** User who made the selection */
+  userId: string;
+  /** The vision job this relates to */
+  jobId: string;
+  /** Raw Trinity scores from The Eye */
+  rawScores: {
+    physics: number;
+    vibe: number;
+    logic: number;
+  };
+  /** All Director pitches presented */
+  directorPitches: Array<{
+    directorId: string;
+    biasedScores: { physics: number; vibe: number; logic: number };
+    recommendedEngine: 'kling' | 'luma';
+  }>;
+  /** The Director the user selected */
+  selectedDirectorId: string;
+  /** The Delta: objective vs subjective choice */
+  learningDelta: {
+    /** Which score dimension was highest objectively */
+    objectiveWinner: 'physics' | 'vibe' | 'logic';
+    /** Which score dimension the user preferred */
+    subjectiveChoice: 'physics' | 'vibe' | 'logic';
+    /** Did user override the AI's recommendation? */
+    wasOverride: boolean;
+  };
+  /** Timestamp of selection */
+  createdAt: Date;
+}
+
+// =============================================================================
 // TWO-STEP ARCHITECTURE: THE EYE (Raw Analysis)
 // =============================================================================
 

@@ -154,7 +154,8 @@ async function persistRateLimitAsync(
         windowStart: new Date(windowStart),
         windowEnd: new Date(windowEnd),
       })
-      .onDuplicateKeyUpdate({
+      .onConflictDoUpdate({
+        target: [rateLimitBuckets.identifier, rateLimitBuckets.endpoint],
         set: {
           requestCount: sql`${rateLimitBuckets.requestCount} + 1`,
         },
@@ -268,7 +269,8 @@ export function getRateLimitHeaders(result: RateLimitResult): Record<string, str
 export async function cleanupExpiredRateLimits(): Promise<number> {
   const result = await db
     .delete(rateLimitBuckets)
-    .where(sql`${rateLimitBuckets.windowEnd} < NOW()`);
-  
-  return result.rowsAffected || 0;
+    .where(sql`${rateLimitBuckets.windowEnd} < NOW()`)
+    .returning({ id: rateLimitBuckets.id });
+
+  return result.length;
 }

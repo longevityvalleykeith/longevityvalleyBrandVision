@@ -27,6 +27,8 @@ import type {
   DirectorState,
   VisionJobStatus,
   VideoPromptStatus,
+  UserCreativeProfile,
+  LearningEvent,
 } from './index';
 
 // =============================================================================
@@ -40,6 +42,11 @@ export const users = pgTable('users', {
   avatarUrl: text('avatar_url'),
   plan: varchar('plan', { length: 50 }).default('free').notNull(),
   creditsRemaining: integer('credits_remaining').default(10).notNull(),
+
+  // Phase 4: User Creative Profile (The Taste Profile)
+  // Stores bias vector, vocabulary weights, director win rates
+  creativeProfile: jsonb('creative_profile').$type<UserCreativeProfile>(),
+
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
   deletedAt: timestamp('deleted_at'),
@@ -203,6 +210,57 @@ export const rateLimitBuckets = pgTable('rate_limit_buckets', {
 }));
 
 // =============================================================================
+// LEARNING EVENTS TABLE (Phase 4: Silent Observer)
+// =============================================================================
+
+export const learningEvents = pgTable('learning_events', {
+  id: uuid('id').primaryKey().defaultRandom(),
+
+  // Foreign key to user
+  userId: uuid('user_id')
+    .notNull()
+    .references(() => users.id, { onDelete: 'cascade' }),
+
+  // Foreign key to vision job
+  jobId: uuid('job_id')
+    .notNull()
+    .references(() => visionJobs.id, { onDelete: 'cascade' }),
+
+  // Raw Trinity scores from The Eye (objective truth)
+  rawScores: jsonb('raw_scores').$type<{
+    physics: number;
+    vibe: number;
+    logic: number;
+  }>().notNull(),
+
+  // All Director pitches presented to user
+  directorPitches: jsonb('director_pitches').$type<Array<{
+    directorId: string;
+    biasedScores: { physics: number; vibe: number; logic: number };
+    recommendedEngine: 'kling' | 'luma';
+  }>>().notNull(),
+
+  // The Director the user selected
+  selectedDirectorId: varchar('selected_director_id', { length: 50 }).notNull(),
+
+  // The Learning Delta (objective vs subjective)
+  learningDelta: jsonb('learning_delta').$type<{
+    objectiveWinner: 'physics' | 'vibe' | 'logic';
+    subjectiveChoice: 'physics' | 'vibe' | 'logic';
+    wasOverride: boolean;
+  }>().notNull(),
+
+  // Timestamps
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+}, (table) => ({
+  // Index for user preference analysis
+  userIdIdx: index('idx_learning_events_user_id').on(table.userId),
+  jobIdIdx: index('idx_learning_events_job_id').on(table.jobId),
+  directorIdx: index('idx_learning_events_director').on(table.selectedDirectorId),
+  createdAtIdx: index('idx_learning_events_created_at').on(table.createdAt),
+}));
+
+// =============================================================================
 // AUDIT LOG TABLE (For debugging and compliance)
 // =============================================================================
 
@@ -229,6 +287,7 @@ export const auditLogs = pgTable('audit_logs', {
 
 export const usersRelations = relations(users, ({ many }) => ({
   visionJobs: many(visionJobs),
+  learningEvents: many(learningEvents),
 }));
 
 export const visionJobsRelations = relations(visionJobs, ({ one, many }) => ({
@@ -242,6 +301,17 @@ export const visionJobsRelations = relations(visionJobs, ({ one, many }) => ({
 export const visionJobVideoPromptsRelations = relations(visionJobVideoPrompts, ({ one }) => ({
   visionJob: one(visionJobs, {
     fields: [visionJobVideoPrompts.jobId],
+    references: [visionJobs.id],
+  }),
+}));
+
+export const learningEventsRelations = relations(learningEvents, ({ one }) => ({
+  user: one(users, {
+    fields: [learningEvents.userId],
+    references: [users.id],
+  }),
+  visionJob: one(visionJobs, {
+    fields: [learningEvents.jobId],
     references: [visionJobs.id],
   }),
 }));
@@ -267,3 +337,6 @@ export type NewRateLimitBucket = typeof rateLimitBuckets.$inferInsert;
 
 export type AuditLog = typeof auditLogs.$inferSelect;
 export type NewAuditLog = typeof auditLogs.$inferInsert;
+
+export type LearningEventRecord = typeof learningEvents.$inferSelect;
+export type NewLearningEventRecord = typeof learningEvents.$inferInsert;

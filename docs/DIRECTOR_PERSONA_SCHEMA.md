@@ -52,6 +52,9 @@ export interface DirectorProfile {
 
   // 🎬 The Instructions (System Prompt Segment)
   systemPromptModifier: string;
+
+  // 🎯 The Routing (Engine Preference)
+  preferredEngine: 'kling' | 'luma' | 'gemini' | 'runway' | 'random';
 }
 ```
 

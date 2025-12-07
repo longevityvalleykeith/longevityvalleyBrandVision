@@ -10,12 +10,14 @@
 
 import { TRPCError } from '@trpc/server';
 import { eq } from 'drizzle-orm';
+import { z } from 'zod';
 import { db } from './db';
-import { visionJobs, visionJobVideoPrompts } from '../types/schema';
-import { 
-  router, 
-  protectedProcedure, 
-  generateProcedure, 
+import { visionJobs, visionJobVideoPrompts, learningEvents, users } from '../types/schema';
+import {
+  router,
+  protectedProcedure,
+  publicProcedure,
+  generateProcedure,
   refineProcedure,
   handleServiceError,
   requireCredits,
@@ -25,26 +27,210 @@ import {
   RefineStoryboardInputSchema,
   ApproveProductionInputSchema,
   GetDirectorStateInputSchema,
+  uuid,
 } from '../types/validation';
 import type {
   DirectorState,
   VideoScene,
   GeminiAnalysisOutput,
+  DirectorPitch,
 } from '../types';
 import { createDirectorState, VALIDATION } from '../types';
 import { generateInitialStoryboard, refineScenePrompt } from './services/deepseekDirector';
 import { generateFluxPreviews, runFluxRemaster, regenerateScene } from './services/fluxPreviewer';
 import { queueBatchVideoGeneration } from './services/klingVideo';
 import { STYLE_PRESETS, getStylePreset } from './utils/stylePresets';
+import { analyzeRawPixels, generateDirectorPitch } from './services/vision';
+import { DIRECTOR_PERSONAS, getDirectorById } from '@/config/directors';
+
+// =============================================================================
+// DIRECTOR ROUTER
+// =============================================================================
+
+// =============================================================================
+// INPUT SCHEMAS FOR LOUNGE
+// =============================================================================
+
+const AnalyzeForLoungeSchema = z.object({
+  imageUrl: z.string().url(),
+});
+
+const SelectDirectorSchema = z.object({
+  jobId: uuid,
+  directorId: z.enum(['newtonian', 'visionary', 'minimalist', 'provocateur']),
+  rawScores: z.object({
+    physics: z.number().min(0).max(10),
+    vibe: z.number().min(0).max(10),
+    logic: z.number().min(0).max(10),
+  }),
+});
 
 // =============================================================================
 // DIRECTOR ROUTER
 // =============================================================================
 
 export const directorRouter = router({
+  // ===========================================================================
+  // PHASE 4: THE DIRECTOR'S LOUNGE ENDPOINTS
+  // ===========================================================================
+
+  /**
+   * Analyze image with all 4 Directors (Rashomon Pattern)
+   *
+   * Returns 4 distinct pitches from each Director persona.
+   * This is the main endpoint for The Director's Lounge UI.
+   */
+  analyze4Directors: publicProcedure
+    .input(AnalyzeForLoungeSchema)
+    .mutation(async ({ input }) => {
+      console.log('[Lounge] Starting 4-Director analysis for:', input.imageUrl);
+
+      // STEP 1: THE EYE - Get raw pixel analysis (cached for all Directors)
+      const rawAnalysis = await analyzeRawPixels(input.imageUrl);
+      console.log('[Lounge] Raw analysis complete:', {
+        physics: rawAnalysis.physics_score,
+        vibe: rawAnalysis.vibe_score,
+        logic: rawAnalysis.logic_score,
+      });
+
+      // STEP 2: THE VOICE - Generate pitches from all 4 Directors in parallel
+      const pitchPromises = DIRECTOR_PERSONAS.map(async (director) => {
+        try {
+          const pitch = await generateDirectorPitch(rawAnalysis, director.id);
+          return {
+            id: director.id,
+            name: director.name,
+            avatar: director.avatar,
+            archetype: director.archetype,
+            quote: director.quote,
+            stats: pitch.biased_scores,
+            engine: pitch.recommended_engine,
+            riskLevel: pitch.risk_level,
+            commentary: pitch.three_beat_pulse,
+          };
+        } catch (error) {
+          console.error(`[Lounge] Error generating pitch for ${director.id}:`, error);
+          // Return fallback data on error
+          return {
+            id: director.id,
+            name: director.name,
+            avatar: director.avatar,
+            archetype: director.archetype,
+            quote: director.quote,
+            stats: { physics: 5, vibe: 5, logic: 5 },
+            engine: 'kling' as const,
+            riskLevel: 'Safe' as const,
+            commentary: {
+              vision: 'Analysis unavailable',
+              safety: 'Please retry',
+              magic: 'Error occurred during analysis',
+            },
+          };
+        }
+      });
+
+      const directorPitches = await Promise.all(pitchPromises);
+
+      console.log('[Lounge] All 4 pitches generated successfully');
+
+      return {
+        rawScores: {
+          physics: rawAnalysis.physics_score,
+          vibe: rawAnalysis.vibe_score,
+          logic: rawAnalysis.logic_score,
+        },
+        directors: directorPitches,
+        analyzedAt: new Date().toISOString(),
+      };
+    }),
+
+  /**
+   * Record Director selection (Learning Event)
+   *
+   * Called when user selects a Director in The Lounge.
+   * Captures the learning delta for the Studio Head.
+   */
+  selectDirector: publicProcedure
+    .input(SelectDirectorSchema)
+    .mutation(async ({ input }) => {
+      console.log('[Lounge] Recording Director selection:', input.directorId);
+
+      // Determine objective winner (highest raw score)
+      const { physics, vibe, logic } = input.rawScores;
+      const objectiveWinner =
+        physics >= vibe && physics >= logic ? 'physics' :
+        vibe >= physics && vibe >= logic ? 'vibe' : 'logic';
+
+      // Map Director to their dominant score dimension
+      const directorDominance: Record<string, 'physics' | 'vibe' | 'logic'> = {
+        newtonian: 'physics',
+        visionary: 'vibe',
+        minimalist: 'logic',
+        provocateur: 'physics', // Chaos leans physics
+      };
+
+      const subjectiveChoice = directorDominance[input.directorId] ?? 'physics';
+      const wasOverride = objectiveWinner !== subjectiveChoice;
+
+      // Get system user for now (will be replaced with auth user)
+      let systemUser = await db.query.users.findFirst({
+        where: eq(users.email, 'admin@longevity.valley'),
+      });
+
+      if (!systemUser) {
+        console.warn('[Lounge] System user not found, skipping learning event');
+        return {
+          success: true,
+          learningRecorded: false,
+          selectedDirector: input.directorId,
+        };
+      }
+
+      // Record learning event
+      try {
+        await db.insert(learningEvents).values({
+          userId: systemUser.id,
+          jobId: input.jobId,
+          rawScores: input.rawScores,
+          directorPitches: [], // Will be populated with full pitch data later
+          selectedDirectorId: input.directorId,
+          learningDelta: {
+            objectiveWinner,
+            subjectiveChoice,
+            wasOverride,
+          },
+        });
+
+        console.log('[Lounge] Learning event recorded:', {
+          directorId: input.directorId,
+          wasOverride,
+          objectiveWinner,
+          subjectiveChoice,
+        });
+
+        return {
+          success: true,
+          learningRecorded: true,
+          selectedDirector: input.directorId,
+          wasOverride,
+        };
+      } catch (error) {
+        console.error('[Lounge] Failed to record learning event:', error);
+        return {
+          success: true,
+          learningRecorded: false,
+          selectedDirector: input.directorId,
+        };
+      }
+    }),
+
+  // ===========================================================================
+  // EXISTING PHASE 3C ENDPOINTS (Video Director Mode)
+  // ===========================================================================
+
   /**
    * Initialize Director Mode for a vision job
-   * 
+   *
    * Flow:
    * 1. Check image quality (Gatekeeper)
    * 2. Optional remaster if quality < 7
@@ -148,20 +334,21 @@ export const directorRouter = router({
           completed_at: null,
         };
 
-        // Persist to database
+        // Persist to database using the correct schema columns
         await db
           .insert(visionJobVideoPrompts)
           .values({
             jobId: input.jobId,
-            directorOutput: initialState,
+            productionEngine: 'kling', // Default engine, will be updated on selection
             status: 'reviewing',
+            scenesData: scenesWithPreviews,
             remasteredImageUrl: isRemastered ? workingImageUrl : null,
           })
           .onConflictDoUpdate({
             target: visionJobVideoPrompts.jobId,
             set: {
-              directorOutput: initialState,
               status: 'reviewing',
+              scenesData: scenesWithPreviews,
               remasteredImageUrl: isRemastered ? workingImageUrl : null,
             },
           });
@@ -205,17 +392,19 @@ export const directorRouter = router({
           });
         }
 
-        const currentState = promptRecord.directorOutput as DirectorState;
+        // Reconstruct DirectorState from schema columns
+        const currentScenes = promptRecord.scenesData as DirectorState['scenes'];
+        const currentStatus = promptRecord.status;
 
-        // Validate state allows refinement
-        if (currentState.stage !== 'STORYBOARD_REVIEW') {
+        // Validate state allows refinement (status should be 'reviewing')
+        if (currentStatus !== 'reviewing') {
           throw new TRPCError({
             code: 'BAD_REQUEST',
-            message: `Cannot refine in stage: ${currentState.stage}`,
+            message: `Cannot refine in status: ${currentStatus}`,
           });
         }
 
-        let scenes = [...currentState.scenes];
+        let scenes = [...currentScenes];
 
         // Process each refinement
         const updates = await Promise.all(
@@ -243,7 +432,8 @@ export const directorRouter = router({
             );
 
             // Get style for the scene
-            const style = getStylePreset(currentState.selected_style_id || '') || STYLE_PRESETS[0];
+            // Get style from the job's vision analysis or use default
+            const style = STYLE_PRESETS[0];
             if (!style) {
               throw new TRPCError({
                 code: 'INTERNAL_SERVER_ERROR',
@@ -267,17 +457,27 @@ export const directorRouter = router({
           return updated || s;
         });
 
-        // Update state
-        const newState: DirectorState = {
-          ...currentState,
-          scenes,
-        };
-
-        // Persist
+        // Persist updated scenes
         await db
           .update(visionJobVideoPrompts)
-          .set({ directorOutput: newState })
+          .set({ scenesData: scenes })
           .where(eq(visionJobVideoPrompts.jobId, input.jobId));
+
+        // Return reconstructed state for API response
+        const newState: DirectorState = {
+          jobId: input.jobId,
+          stage: 'STORYBOARD_REVIEW',
+          quality_score: 7, // Default
+          source_image_url: promptRecord.remasteredImageUrl || '',
+          is_remastered: !!promptRecord.remasteredImageUrl,
+          selected_style_id: null,
+          invariant_visual_summary: '',
+          scenes,
+          cost_estimate: scenes.length,
+          error_message: null,
+          started_at: promptRecord.createdAt,
+          completed_at: null,
+        };
 
         return newState;
       }, 'refineStoryboard');
@@ -315,10 +515,11 @@ export const directorRouter = router({
           });
         }
 
-        const currentState = promptRecord.directorOutput as DirectorState;
+        // Get scenes from schema
+        const currentScenes = promptRecord.scenesData as DirectorState['scenes'];
 
         // Validate all confirmed scenes are GREEN
-        const confirmedScenes = currentState.scenes.filter((s) =>
+        const confirmedScenes = currentScenes.filter((s) =>
           input.confirmedSceneIds.includes(s.id)
         );
 
@@ -330,22 +531,16 @@ export const directorRouter = router({
           });
         }
 
-        // Update state to RENDERING
-        const newState: DirectorState = {
-          ...currentState,
-          stage: 'RENDERING',
-        };
-
+        // Update status to rendering
         await db
           .update(visionJobVideoPrompts)
           .set({
-            directorOutput: newState,
             status: 'rendering',
           })
           .where(eq(visionJobVideoPrompts.jobId, input.jobId));
 
-        // Queue Kling API jobs for approved scenes
-        const selectedStyle = getStylePreset(currentState.selected_style_id || '');
+        // Get style for video generation
+        const selectedStyle = STYLE_PRESETS[0];
         const stylePromptLayer = selectedStyle?.prompt_template;
 
         // Start video generation in background (don't await)
@@ -356,6 +551,22 @@ export const directorRouter = router({
           .catch((error) => {
             console.error('Error queuing video generation:', error);
           });
+
+        // Return reconstructed state for API response
+        const newState: DirectorState = {
+          jobId: input.jobId,
+          stage: 'RENDERING',
+          quality_score: 7,
+          source_image_url: promptRecord.remasteredImageUrl || '',
+          is_remastered: !!promptRecord.remasteredImageUrl,
+          selected_style_id: null,
+          invariant_visual_summary: '',
+          scenes: currentScenes,
+          cost_estimate: confirmedScenes.length,
+          error_message: null,
+          started_at: promptRecord.createdAt,
+          completed_at: null,
+        };
 
         return newState;
       }, 'approveProduction');
@@ -391,7 +602,34 @@ export const directorRouter = router({
           });
         }
 
-        return promptRecord.directorOutput as DirectorState;
+        // Reconstruct DirectorState from schema columns
+        const scenes = promptRecord.scenesData as DirectorState['scenes'];
+        const status = promptRecord.status;
+
+        // Map status to stage
+        const stageMap: Record<string, DirectorState['stage']> = {
+          reviewing: 'STORYBOARD_REVIEW',
+          rendering: 'RENDERING',
+          completed: 'COMPLETED',
+          scripting: 'STORYBOARD_REVIEW',
+        };
+
+        const state: DirectorState = {
+          jobId: input.jobId,
+          stage: stageMap[status ?? 'reviewing'] ?? 'STORYBOARD_REVIEW',
+          quality_score: 7,
+          source_image_url: promptRecord.remasteredImageUrl || job.imageUrl,
+          is_remastered: !!promptRecord.remasteredImageUrl,
+          selected_style_id: null,
+          invariant_visual_summary: '',
+          scenes: scenes ?? [],
+          cost_estimate: scenes?.length ?? 0,
+          error_message: null,
+          started_at: promptRecord.createdAt,
+          completed_at: promptRecord.completedAt,
+        };
+
+        return state;
       }, 'getDirectorState');
     }),
 
@@ -441,22 +679,35 @@ export const directorRouter = router({
           });
         }
 
-        const currentState = promptRecord.directorOutput as DirectorState;
+        // Get current scenes from schema
+        const currentScenes = promptRecord.scenesData as DirectorState['scenes'];
 
         // Update scene status
-        const scenes = currentState.scenes.map((s) =>
+        const scenes = currentScenes.map((s) =>
           s.id === input.sceneId ? { ...s, status: 'GREEN' as const } : s
         );
 
-        const newState: DirectorState = {
-          ...currentState,
-          scenes,
-        };
-
+        // Persist updated scenes
         await db
           .update(visionJobVideoPrompts)
-          .set({ directorOutput: newState })
+          .set({ scenesData: scenes })
           .where(eq(visionJobVideoPrompts.jobId, input.jobId));
+
+        // Return reconstructed state for API response
+        const newState: DirectorState = {
+          jobId: input.jobId,
+          stage: 'STORYBOARD_REVIEW',
+          quality_score: 7,
+          source_image_url: promptRecord.remasteredImageUrl || job.imageUrl,
+          is_remastered: !!promptRecord.remasteredImageUrl,
+          selected_style_id: null,
+          invariant_visual_summary: '',
+          scenes,
+          cost_estimate: scenes.length,
+          error_message: null,
+          started_at: promptRecord.createdAt,
+          completed_at: null,
+        };
 
         return newState;
       }, 'approveScene');

@@ -13,42 +13,42 @@ import { trpc } from '@/lib/trpc';
 import type { BrandAnalysisData } from '@/server/utils/visionAdapter';
 import FileDropzone from './FileDropzone';
 import CircularProgress from './CircularProgress';
+import { useAuth } from '@/client/useAuth';
 
 export default function BrandScanner() {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [preview, setPreview] = useState<string | null>(null);
   const [analysisData, setAnalysisData] = useState<BrandAnalysisData | null>(null);
   const [isUploading, setIsUploading] = useState(false);
+  const [isAuthReady, setIsAuthReady] = useState(false);
+
+  const { isAuthenticated, ensureSystemUser, getAccessToken } = useAuth();
+
+  // Auto-authenticate on mount (demo mode)
+  useEffect(() => {
+    async function initAuth() {
+      if (!isAuthenticated) {
+        console.log('[BrandScanner] No auth, fetching system user...');
+        try {
+          const userId = await ensureSystemUser();
+          console.log('[BrandScanner] Got system user:', userId);
+        } catch (error) {
+          console.error('[BrandScanner] Failed to get system user:', error);
+        }
+      }
+      setIsAuthReady(true);
+    }
+    initAuth();
+  }, [isAuthenticated, ensureSystemUser]);
 
   // tRPC mutations
   const uploadMutation = trpc.vision.uploadImage.useMutation({
     onSuccess: (data) => {
-      console.log('🎉 uploadMutation.onSuccess triggered!');
-      console.log('📦 Response data:', data);
-      console.log('🆔 JobID:', data.jobId);
-      console.log('🖼️ Image URL:', data.imageUrl);
-      console.log('📊 Status:', data.status);
-
-      alert(`✅ SUCCESS! JobID: ${data.jobId}`);
-
-      console.log('💾 Setting analysis data...');
       setAnalysisData(data);
-
-      console.log('🔓 Setting isUploading to false...');
       setIsUploading(false);
-
-      console.log('✅ Upload complete!');
     },
     onError: (error) => {
-      console.error('❌ uploadMutation.onError triggered!');
-      console.error('🔴 Error object:', error);
-      console.error('📝 Error message:', error.message);
-      console.error('📋 Error data:', error.data);
-      console.error('🔢 Error code:', error.data?.code);
-      console.error('🗂️ Full error:', JSON.stringify(error, null, 2));
-
-      alert(`❌ ERROR: ${error.message}`);
-
+      console.error('[BrandScanner] Upload failed:', error.message);
       setIsUploading(false);
       setAnalysisData({
         jobId: '',
@@ -90,40 +90,23 @@ export default function BrandScanner() {
     const activeFile = validFile || selectedFile;
 
     if (!activeFile) {
-      console.error('❌ No file available to upload');
       return;
     }
 
     // Runtime validation before FileReader
     if (!(activeFile instanceof Blob)) {
-      console.error('❌ Invalid file type:', activeFile);
       return;
     }
 
-    console.log('✅ File Captured:', activeFile.name);
-    console.log('📁 File Object:', activeFile);
-    console.log('📊 File Details:', {
-      name: activeFile.name,
-      type: activeFile.type,
-      size: activeFile.size,
-    });
-
-    console.log('⏳ Setting isUploading to true...');
     setIsUploading(true);
 
     // Convert file to base64
-    console.log('📖 Creating FileReader...');
     const reader = new FileReader();
 
     reader.onload = async (e) => {
-      console.log('✅ FileReader.onload triggered');
-      console.log('📝 Raw result length:', (e.target?.result as string)?.length);
-
       const base64Data = (e.target?.result as string).split(',')[1];
-      console.log('🔢 Base64 data length:', base64Data?.length);
 
       if (!base64Data) {
-        console.error('❌ No base64 data - FileReader failed');
         setIsUploading(false);
         setAnalysisData({
           jobId: '',
@@ -138,28 +121,18 @@ export default function BrandScanner() {
         return;
       }
 
-      console.log('🚀 Calling uploadMutation.mutate with:', {
-        filename: activeFile.name,
-        mimeType: activeFile.type,
-        dataLength: base64Data.length,
-      });
-
-      // Send clean object to mutation
       uploadMutation.mutate({
         filename: activeFile.name,
         mimeType: activeFile.type,
         data: base64Data,
       });
-
-      console.log('✅ uploadMutation.mutate called');
     };
 
-    reader.onerror = (error) => {
-      console.error('❌ FileReader.onerror:', error);
+    reader.onerror = () => {
+      console.error('[BrandScanner] Failed to read file');
       setIsUploading(false);
     };
 
-    console.log('📂 Starting FileReader.readAsDataURL...');
     reader.readAsDataURL(activeFile);
   }, [selectedFile, uploadMutation]);
 
@@ -168,8 +141,6 @@ export default function BrandScanner() {
    * Passes file directly to handleUpload to bypass state latency
    */
   const handleFileSelect = useCallback((file: File) => {
-    console.log('🎯 handleFileSelect called with file:', file.name);
-
     // Update UI state
     setSelectedFile(file);
 
@@ -211,7 +182,6 @@ export default function BrandScanner() {
           className="mb-4 sm:mb-6"
         />
 
-        {/* Upload Button - OPERATION HANDSHAKE: Enabled for testing */}
         <button
           onClick={handleUpload}
           disabled={isUploading}
@@ -224,9 +194,9 @@ export default function BrandScanner() {
                 : 'bg-purple-600 hover:bg-purple-700 active:scale-[0.98] shadow-lg hover:shadow-xl'
             }
           `}
-          aria-label={isUploading ? 'Uploading...' : 'Analyze Brand'}
+          aria-label={isUploading ? 'Analyzing...' : 'Analyze Brand'}
         >
-          {isUploading ? 'Uploading...' : 'Analyze Brand [TEST MODE]'}
+          {isUploading ? 'Analyzing...' : 'Analyze Brand'}
         </button>
       </div>
 

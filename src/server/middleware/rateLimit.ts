@@ -11,7 +11,7 @@
 import { TRPCError } from '@trpc/server';
 import { db } from '../db';
 import { rateLimitBuckets } from '../../types/schema';
-import { eq, and, gt } from 'drizzle-orm';
+import { eq, and, gt, lt } from 'drizzle-orm';
 
 // =============================================================================
 // RATE LIMIT CONFIGURATIONS
@@ -153,12 +153,11 @@ export async function cleanupExpiredBuckets(): Promise<number> {
   try {
     const result = await db
       .delete(rateLimitBuckets)
-      .where(gt(now, rateLimitBuckets.windowEnd));
+      .where(lt(rateLimitBuckets.windowEnd, now))
+      .returning({ id: rateLimitBuckets.id });
 
-    // Note: Drizzle doesn't return affected rows count by default
-    // Consider adding a COUNT query if needed
-    console.log(`Cleaned up expired rate limit buckets at ${now.toISOString()}`);
-    return 0; // Placeholder
+    console.log(`Cleaned up ${result.length} expired rate limit buckets at ${now.toISOString()}`);
+    return result.length;
   } catch (error) {
     console.error('Failed to cleanup rate limit buckets:', error);
     return 0;

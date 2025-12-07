@@ -1,112 +1,66 @@
 /**
  * Director Persona Registry
  *
- * The single source of truth for all Director personalities in the
- * Modular Persona System ("The Director's Lounge").
- *
- * Philosophy: "Casting, Not Configuring"
- * - The User is the Executive Producer
- * - The AI is a roster of elite Directors
- * - Switching Directors changes Risk, Vocabulary, Engine Choice, and Temporal Pacing
+ * Implementation of docs/DIRECTOR_PERSONA_SCHEMA.md Section 2 & 3.
+ * DO NOT add fields not specified in the schema.
  *
  * @module config/directors
- * @version 1.0.0
+ * @version 2.0.0
  * @see docs/DIRECTOR_PERSONA_SCHEMA.md
  */
 
 // =============================================================================
-// TYPES
+// TYPES (Section 2: The Director Persona Schema)
 // =============================================================================
 
 /**
- * Risk profile labels for Director personas
- */
-export type RiskLabel = 'Safe' | 'Balanced' | 'Experimental';
-
-/**
- * Available video production engines
- */
-export type VideoEngine = 'kling' | 'luma' | 'gemini' | 'runway' | 'random';
-
-/**
- * The Director Persona Schema
- *
- * Defines the complete "Soul" of a Director personality including
- * their biases, risk tolerance, voice characteristics, and behavior modifiers.
+ * The Director Persona Schema ('DirectorProfile')
+ * Exactly as specified in docs/DIRECTOR_PERSONA_SCHEMA.md Section 2.
  */
 export interface DirectorProfile {
-  /** Unique identifier (e.g., 'newtonian') */
-  id: string;
+  id: string;           // e.g., 'newtonian'
+  name: string;         // e.g., "The Newtonian"
+  avatar: string;       // Emoji or Asset URL
+  archetype: string;    // e.g., "Physics Specialist"
+  quote: string;        // e.g., "Respect the gravity."
 
-  /** Display name (e.g., "The Newtonian") */
-  name: string;
-
-  /** Avatar emoji or asset URL */
-  avatar: string;
-
-  /** Director archetype (e.g., "Physics Specialist") */
-  archetype: string;
-
-  /** Signature quote that captures the Director's philosophy */
-  quote: string;
-
-  /**
-   * Score multipliers that bias the Trinity scores
-   * Values > 1.0 amplify that dimension's influence on routing
-   */
+  // 🧠 The Brain (Logic & Bias)
   biases: {
-    /** > 1.0 favors Kling (realistic motion) */
-    physicsMultiplier: number;
-    /** > 1.0 favors Luma (aesthetic/emotional) */
-    vibeMultiplier: number;
-    /** > 1.0 favors text/structure preservation */
-    logicMultiplier: number;
+    physicsMultiplier: number; // >1.0 favors Kling
+    vibeMultiplier: number;    // >1.0 favors Luma
+    logicMultiplier: number;   // >1.0 favors Gemini/Runway
   };
 
-  /**
-   * Risk tolerance settings
-   */
+  // ⚠️ The Safety Valve
   riskProfile: {
-    /** Human-readable risk category */
-    label: RiskLabel;
-    /** 0.0 (Strict/Safe) to 1.0 (Wild/Experimental) */
-    hallucinationThreshold: number;
+    label: 'Safe' | 'Balanced' | 'Experimental';
+    hallucinationThreshold: number; // 0.0 (Strict) to 1.0 (Wild)
   };
 
-  /**
-   * Voice characteristics for commentary generation
-   */
+  // 🗣️ The Voice (Linguistic Injection)
   voice: {
-    /** Tone description (e.g., "Technical, Precise, Cold") */
-    tone: string;
-    /** Preferred vocabulary words to inject */
-    vocabulary: string[];
-    /** Words this Director would never use */
-    forbidden: string[];
+    tone: string;       // e.g., "Technical, Precise, Cold"
+    vocabulary: string[]; // ["Momentum", "Friction", "Mass", "Velocity"]
+    forbidden: string[];  // ["Magic", "Dream", "Glow"]
   };
 
-  /**
-   * Preferred video production engine
-   * 'random' means the Director doesn't have a preference
-   */
-  preferredEngine: VideoEngine;
-
-  /**
-   * System prompt segment injected into LLM calls
-   * This shapes how the Director "speaks" and "thinks"
-   */
+  // 🎬 The Instructions (System Prompt Segment)
   systemPromptModifier: string;
+
+  // 🎯 The Routing (Engine Preference)
+  preferredEngine: 'kling' | 'luma' | 'gemini' | 'runway' | 'random';
 }
 
 // =============================================================================
-// THE ROSTER: 4 LAUNCH PERSONAS
+// THE ROSTER (Section 3: The Persona Registry)
 // =============================================================================
 
 /**
- * The Newtonian
- *
- * Physics Specialist - Favors realistic motion and structural integrity.
- * Default selection for high Physics scores.
+ * A. The Newtonian (Default for High Physics)
+ * - Archetype: The Simulationist
+ * - Bias: Physics x1.5
+ * - Risk: Safe (0.2)
+ * - Engine: Hard-lock Kling AI
  */
 const NEWTONIAN: DirectorProfile = {
   id: 'newtonian',
@@ -117,7 +71,7 @@ const NEWTONIAN: DirectorProfile = {
 
   biases: {
     physicsMultiplier: 1.5,
-    vibeMultiplier: 0.8,
+    vibeMultiplier: 1.0,
     logicMultiplier: 1.0,
   },
 
@@ -128,29 +82,21 @@ const NEWTONIAN: DirectorProfile = {
 
   voice: {
     tone: 'Technical, Precise, Cold',
-    vocabulary: ['momentum', 'friction', 'mass', 'velocity', 'trajectory', 'force', 'inertia', 'kinetic'],
-    forbidden: ['magic', 'dream', 'glow', 'ethereal', 'mystical', 'whimsical'],
+    vocabulary: ['Momentum', 'Friction', 'Mass', 'Velocity'],
+    forbidden: ['Magic', 'Dream', 'Glow'],
   },
 
+  systemPromptModifier: 'I see mass and velocity. I will preserve the structural integrity.',
+
   preferredEngine: 'kling',
-
-  systemPromptModifier: `You are The Newtonian, a physics-obsessed director who sees the world through laws of motion.
-Your commentary focuses on:
-- Mass, velocity, and trajectory of moving elements
-- Structural integrity and realistic deformation
-- Cause-and-effect chains in motion
-- Camera movements that follow natural physics
-
-You speak with precision. Short, factual sentences. No flowery language.
-When describing motion, you think in terms of forces acting on objects.
-You would never distort an object's shape unnaturally - that would violate physics.`,
 };
 
 /**
- * The Visionary
- *
- * Vibe Specialist - Favors aesthetic beauty and emotional impact.
- * Default selection for high Vibe scores.
+ * B. The Visionary (Default for High Vibe)
+ * - Archetype: The Auteur
+ * - Bias: Vibe x1.5
+ * - Risk: Experimental (0.8)
+ * - Engine: Hard-lock Luma Dream Machine
  */
 const VISIONARY: DirectorProfile = {
   id: 'visionary',
@@ -160,9 +106,9 @@ const VISIONARY: DirectorProfile = {
   quote: 'Let the colors bleed.',
 
   biases: {
-    physicsMultiplier: 0.8,
+    physicsMultiplier: 1.0,
     vibeMultiplier: 1.5,
-    logicMultiplier: 0.9,
+    logicMultiplier: 1.0,
   },
 
   riskProfile: {
@@ -171,30 +117,22 @@ const VISIONARY: DirectorProfile = {
   },
 
   voice: {
-    tone: 'Poetic, Evocative, Bold',
-    vocabulary: ['atmosphere', 'mood', 'cinematic', 'visceral', 'luminous', 'textural', 'dreamlike', 'hypnotic'],
-    forbidden: ['technical', 'precise', 'calculate', 'measure', 'data', 'metric'],
+    tone: 'Poetic, Evocative, Dreamy',
+    vocabulary: ['Atmosphere', 'Mood', 'Light', 'Emotion'],
+    forbidden: ['Technical', 'Precise', 'Calculate'],
   },
 
+  systemPromptModifier: 'I see a mood. I will enhance the atmosphere and lighting.',
+
   preferredEngine: 'luma',
-
-  systemPromptModifier: `You are The Visionary, an auteur who sees every frame as a canvas for emotion.
-Your commentary focuses on:
-- Mood, atmosphere, and emotional resonance
-- Color grading and light quality
-- Artistic morphing and creative transitions
-- The feeling the viewer should experience
-
-You speak like a poet with a camera. Rich, evocative language.
-You're willing to bend reality for beauty - morphing is art, not a bug.
-The physics can flex if the vibe is right.`,
 };
 
 /**
- * The Minimalist
- *
- * Logic Specialist - Favors clarity, structure, and text preservation.
- * Default selection for high Logic scores or typography-heavy images.
+ * C. The Minimalist (Default for High Logic/Text)
+ * - Archetype: The Designer
+ * - Bias: Logic x2.0
+ * - Risk: Safe (0.1)
+ * - Engine: Hard-lock Gemini Video / Runway
  */
 const MINIMALIST: DirectorProfile = {
   id: 'minimalist',
@@ -204,8 +142,8 @@ const MINIMALIST: DirectorProfile = {
   quote: 'Less, but better.',
 
   biases: {
-    physicsMultiplier: 0.7,
-    vibeMultiplier: 0.7,
+    physicsMultiplier: 1.0,
+    vibeMultiplier: 1.0,
     logicMultiplier: 2.0,
   },
 
@@ -215,30 +153,22 @@ const MINIMALIST: DirectorProfile = {
   },
 
   voice: {
-    tone: 'Minimal, Precise, Elegant',
-    vocabulary: ['clean', 'space', 'structure', 'balance', 'clarity', 'intention', 'restraint', 'essential'],
-    forbidden: ['chaos', 'wild', 'explosive', 'dramatic', 'intense', 'crazy'],
+    tone: 'Minimal, Clean, Precise',
+    vocabulary: ['Structure', 'Typography', 'Balance', 'Space'],
+    forbidden: ['Chaos', 'Wild', 'Explosive'],
   },
 
-  preferredEngine: 'kling',
+  systemPromptModifier: 'I see structure and typography. I will stabilize the camera.',
 
-  systemPromptModifier: `You are The Minimalist, a designer who believes perfection is achieved when there is nothing left to remove.
-Your commentary focuses on:
-- Typography preservation and legibility
-- Negative space and visual breathing room
-- Subtle, intentional motion only
-- Protecting brand assets with zero distortion
-
-You speak in short, declarative sentences. One idea at a time.
-Motion should be purposeful - a slow zoom, a gentle fade.
-If text is present, it must remain readable. Period.`,
+  preferredEngine: 'gemini',
 };
 
 /**
- * The Provocateur
- *
- * Wildcard - High risk, high reward. Embraces chaos and experimentation.
- * For users who want to push creative boundaries.
+ * D. The Provocateur (Wildcard)
+ * - Archetype: The Disruptor
+ * - Bias: Vibe x1.2, Physics x1.2 (Chaos)
+ * - Risk: Experimental (0.95)
+ * - Engine: Random / Best available for high motion-strength
  */
 const PROVOCATEUR: DirectorProfile = {
   id: 'provocateur',
@@ -250,7 +180,7 @@ const PROVOCATEUR: DirectorProfile = {
   biases: {
     physicsMultiplier: 1.2,
     vibeMultiplier: 1.2,
-    logicMultiplier: 0.6,
+    logicMultiplier: 1.0,
   },
 
   riskProfile: {
@@ -260,26 +190,17 @@ const PROVOCATEUR: DirectorProfile = {
 
   voice: {
     tone: 'Provocative, Bold, Irreverent',
-    vocabulary: ['disrupt', 'unexpected', 'collision', 'tension', 'raw', 'unfiltered', 'radical', 'subvert'],
-    forbidden: ['safe', 'conservative', 'traditional', 'standard', 'normal', 'expected'],
+    vocabulary: ['Chaos', 'Disrupt', 'Unexpected', 'Radical'],
+    forbidden: ['Safe', 'Conservative', 'Traditional'],
   },
 
+  systemPromptModifier: 'I see potential for chaos. Let\'s break the rules.',
+
   preferredEngine: 'random',
-
-  systemPromptModifier: `You are The Provocateur, a creative disruptor who believes comfort is the enemy of art.
-Your commentary focuses on:
-- Unexpected juxtapositions and creative collisions
-- Maximum motion and energy
-- Breaking visual conventions
-- Creating content that demands attention
-
-You speak with edge and confidence. Challenge assumptions.
-Morphing, warping, chaos - these are features, not bugs.
-If it makes someone uncomfortable, you're on the right track.`,
 };
 
 // =============================================================================
-// REGISTRY
+// REGISTRY EXPORTS
 // =============================================================================
 
 /**
@@ -300,7 +221,7 @@ const DIRECTOR_MAP = new Map<string, DirectorProfile>(
 );
 
 /**
- * Default Director ID when none is specified or ID is not found
+ * Default Director ID when none is specified
  */
 export const DEFAULT_DIRECTOR_ID = 'newtonian';
 
@@ -310,13 +231,6 @@ export const DEFAULT_DIRECTOR_ID = 'newtonian';
 
 /**
  * Get a Director by their ID
- *
- * @param id - The Director's unique identifier
- * @returns The matching DirectorProfile, or The Newtonian as fallback
- *
- * @example
- * const director = getDirectorById('visionary');
- * console.log(director.name); // "The Visionary"
  */
 export function getDirectorById(id: string): DirectorProfile {
   return DIRECTOR_MAP.get(id) ?? NEWTONIAN;
@@ -324,12 +238,6 @@ export function getDirectorById(id: string): DirectorProfile {
 
 /**
  * Get all available Directors for UI rendering
- *
- * @returns Array of all DirectorProfile objects
- *
- * @example
- * const directors = getAllDirectors();
- * directors.map(d => <DirectorCard key={d.id} director={d} />)
  */
 export function getAllDirectors(): DirectorProfile[] {
   return [...DIRECTOR_PERSONAS];
@@ -337,49 +245,24 @@ export function getAllDirectors(): DirectorProfile[] {
 
 /**
  * Get the recommended Director based on Trinity scores
- *
- * Uses the score multipliers to determine which Director
- * would be most appropriate for a given image analysis.
- *
- * @param physicsScore - Physics score (0-10)
- * @param vibeScore - Vibe score (0-10)
- * @param logicScore - Logic score (0-10)
- * @returns The recommended DirectorProfile
- *
- * @example
- * const director = getRecommendedDirector(8.5, 6.0, 5.0);
- * console.log(director.id); // 'newtonian' (high physics)
  */
 export function getRecommendedDirector(
   physicsScore: number,
   vibeScore: number,
   logicScore: number
 ): DirectorProfile {
-  // Determine dominant dimension
   const scores = [
-    { dimension: 'physics', score: physicsScore, director: NEWTONIAN },
-    { dimension: 'vibe', score: vibeScore, director: VISIONARY },
-    { dimension: 'logic', score: logicScore, director: MINIMALIST },
+    { score: physicsScore, director: NEWTONIAN },
+    { score: vibeScore, director: VISIONARY },
+    { score: logicScore, director: MINIMALIST },
   ];
 
-  // Sort by score descending
   scores.sort((a, b) => b.score - a.score);
-
-  // Return the Director that matches the highest-scoring dimension
-  return scores[0].director;
+  return scores[0]?.director ?? NEWTONIAN;
 }
 
 /**
  * Apply Director biases to raw Trinity scores
- *
- * Multiplies each score by the Director's bias multipliers
- * to get the "perceived" scores from that Director's perspective.
- *
- * @param director - The Director applying their perspective
- * @param physicsScore - Raw physics score (0-10)
- * @param vibeScore - Raw vibe score (0-10)
- * @param logicScore - Raw logic score (0-10)
- * @returns Biased scores clamped to 0-10 range
  */
 export function applyDirectorBiases(
   director: DirectorProfile,
@@ -397,25 +280,34 @@ export function applyDirectorBiases(
 }
 
 /**
- * Determine the video engine based on Director preference and scores
+ * Determine the video engine based on Director's preferredEngine
+ * Uses declarative routing from the Director's persona definition.
  *
- * @param director - The selected Director
- * @param biasedScores - Scores after applying Director biases
- * @returns The recommended video engine
+ * Engine Mapping:
+ * - kling: Realistic physics, motion fidelity
+ * - luma: Aesthetic, dreamy, morphing
+ * - gemini/runway: Logic-focused, typography-safe
+ * - random: Score-based selection (Provocateur chaos)
  */
 export function determineEngine(
   director: DirectorProfile,
   biasedScores: { physics: number; vibe: number; logic: number }
 ): 'kling' | 'luma' {
-  // If Director has a hard preference (not random), use it
-  if (director.preferredEngine !== 'random') {
-    // For engines we support in routing
-    if (director.preferredEngine === 'kling' || director.preferredEngine === 'luma') {
-      return director.preferredEngine;
-    }
-    // For other engines, fall back to score-based routing
+  // Use declarative preferredEngine from Director profile
+  switch (director.preferredEngine) {
+    case 'kling':
+      return 'kling';
+    case 'luma':
+      return 'luma';
+    case 'gemini':
+    case 'runway':
+      // Gemini/Runway map to Kling for now (realistic, stable)
+      return 'kling';
+    case 'random':
+      // Random/Chaos: score-based routing
+      return biasedScores.physics > biasedScores.vibe ? 'kling' : 'luma';
+    default:
+      // Fallback to score-based
+      return biasedScores.physics > biasedScores.vibe ? 'kling' : 'luma';
   }
-
-  // Score-based routing: Physics favors Kling, Vibe favors Luma
-  return biasedScores.physics > biasedScores.vibe ? 'kling' : 'luma';
 }

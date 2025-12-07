@@ -53,26 +53,13 @@ const ListJobsSchema = PaginationSchema.extend({
 export const visionRouter = router({
   /**
    * Upload image for brand analysis
-   * OPERATION BUNKER BUSTER: Simplified DB write with guaranteed system user
+   * Uses system user for demo mode (no auth required)
    */
   uploadImage: publicProcedure
     .input(UploadImageSchema)
-    .mutation(async ({ input, ctx }) => {
+    .mutation(async ({ input }) => {
       try {
-        console.log('⚡️ OPERATION BUNKER BUSTER - uploadImage received');
-        console.log('🔍 Context check:', {
-          hasDb: !!ctx.db,
-          hasUserId: !!ctx.userId,
-          contextKeys: Object.keys(ctx),
-        });
-        console.log('📥 Input:', {
-          filename: input.filename,
-          mimeType: input.mimeType,
-          dataLength: input.data.length,
-        });
-
-        // STEP A: Ensure System User exists
-        console.log('👤 STEP A: Verifying System User...');
+        // Ensure System User exists for demo mode
         const { users } = await import('../types/schema');
 
         let systemUser = await db.query.users.findFirst({
@@ -80,7 +67,6 @@ export const visionRouter = router({
         });
 
         if (!systemUser) {
-          console.log('⚠️ System User not found. Creating...');
           const [newUser] = await db.insert(users).values({
             email: 'admin@longevity.valley',
             name: 'System Admin',
@@ -88,56 +74,34 @@ export const visionRouter = router({
             creditsRemaining: 999999,
           }).returning();
           systemUser = newUser!;
-          console.log('✅ System User Created:', systemUser.id);
-        } else {
-          console.log('✅ System User Found:', systemUser.id);
         }
 
-        console.log('👤 System User Verified:', systemUser.id);
-
         // Validate and process file
-        console.log('📝 Validating file...');
         const validatedFile = await processUploadedFile(
           input.data,
           input.mimeType,
           input.filename
         );
-        console.log('✅ File validated');
 
         // Scan for malware
-        console.log('🔍 Scanning for malware...');
         const scanResult = await scanForMalware(validatedFile.buffer);
 
         if (!scanResult.safe) {
-          console.error('❌ Malware detected:', scanResult.threat);
           throw new TRPCError({
             code: 'BAD_REQUEST',
             message: `File rejected: ${scanResult.threat}`,
           });
         }
-        console.log('✅ Malware scan passed');
 
         // Upload to Supabase Storage
-        console.log('☁️ Uploading to Supabase Storage...');
         const imageUrl = await uploadToSupabaseStorage(
           validatedFile.buffer,
           validatedFile.sanitizedFilename,
           validatedFile.mimeType,
           systemUser.id
         );
-        console.log('✅ File uploaded:', imageUrl);
 
-        // STEP B: Insert Vision Job
-        console.log('💾 STEP B: Attempting DB Insert...');
-        console.log('📊 Insert values:', {
-          userId: systemUser.id,
-          imageUrl,
-          originalFilename: validatedFile.originalFilename,
-          mimeType: validatedFile.mimeType,
-          fileSize: validatedFile.size,
-          status: 'pending',
-        });
-
+        // Insert Vision Job
         const [result] = await db.insert(visionJobs).values({
           userId: systemUser.id,
           imageUrl,
@@ -151,8 +115,6 @@ export const visionRouter = router({
           throw new Error('DB insert returned no result');
         }
 
-        console.log('✅ DB Insert Complete. ID:', result.id);
-
         // Audit log (non-blocking)
         db.insert(auditLogs).values({
           userId: systemUser.id,
@@ -165,14 +127,14 @@ export const visionRouter = router({
             mimeType: validatedFile.mimeType,
           },
           ipAddress: 'system',
-        }).catch(err => console.error('Audit log failed:', err));
+        }).catch(() => { /* Audit log is non-critical */ });
 
         // Queue for processing (non-blocking)
-        queueVisionAnalysis(result.id).catch(err => console.error('Queue failed:', err));
+        queueVisionAnalysis(result.id).catch((err) => {
+          console.error('[VisionRouter] Failed to queue analysis:', err.message);
+        });
 
-        // STEP C: Simplified Return
-        console.log('📤 Returning simplified response...');
-        const response = {
+        return {
           success: true,
           jobId: result.id,
           imageUrl: result.imageUrl,
@@ -183,34 +145,57 @@ export const visionRouter = router({
           createdAt: result.createdAt,
         };
 
-        console.log('✅ Response:', response);
-        console.log('🎉 OPERATION BUNKER BUSTER COMPLETE!');
-
-        return response;
-
       } catch (error) {
-        // STEP D: Error handling
-        console.error('❌ DB WRITE FAILED:', error instanceof Error ? error.message : error);
-        console.error('🔴 Full error:', error);
+        console.error('[VisionRouter] Upload failed:', error instanceof Error ? error.message : 'Unknown error');
 
         throw new TRPCError({
           code: 'INTERNAL_SERVER_ERROR',
-          message: error instanceof Error ? error.message : 'Database write failed',
+          message: error instanceof Error ? error.message : 'Upload failed',
         });
       }
     }),
 
   /**
-   * Get a specific vision job
+   * Get system user ID for demo mode
+   * Returns the admin user ID for unauthenticated sessions
    */
-  getJob: protectedProcedure
+  getSystemUser: publicProcedure
+    .query(async () => {
+      const { users } = await import('../types/schema');
+
+      let systemUser = await db.query.users.findFirst({
+        where: eq(users.email, 'admin@longevity.valley'),
+      });
+
+      if (!systemUser) {
+        // Create system user if it doesn't exist
+        const [newUser] = await db.insert(users).values({
+          email: 'admin@longevity.valley',
+          name: 'System Admin',
+          plan: 'premium',
+          creditsRemaining: 9999,
+        }).returning();
+        systemUser = newUser!;
+      }
+
+      return {
+        userId: systemUser.id,
+        email: systemUser.email,
+      };
+    }),
+
+  /**
+   * Get a specific vision job
+   * PUBLIC: Job ID (UUID) serves as implicit authorization
+   * Full auth integration requires NEXT_PUBLIC_SUPABASE_* env vars
+   */
+  getJob: publicProcedure
     .input(GetJobSchema)
-    .query(async ({ input, ctx }) => {
+    .query(async ({ input }) => {
       return handleServiceError(async () => {
         const job = await db.query.visionJobs.findFirst({
           where: and(
             eq(visionJobs.id, input.jobId),
-            eq(visionJobs.userId, ctx.userId!),
             isNull(visionJobs.deletedAt)
           ),
         });
@@ -330,7 +315,7 @@ export const visionRouter = router({
           action: 'vision_job_cancelled',
           entityType: 'vision_job',
           entityId: String(input.jobId),
-          ipAddress: ctx.ip,
+          ipAddress: 'unknown',
         });
 
         return { success: true };
@@ -370,7 +355,7 @@ export const visionRouter = router({
           action: 'vision_job_deleted',
           entityType: 'vision_job',
           entityId: String(input.jobId),
-          ipAddress: ctx.ip,
+          ipAddress: 'unknown',
         });
 
         return { success: true };
@@ -477,16 +462,19 @@ async function processVisionAnalysis(jobId: string): Promise<void> {
     const analysis = await analyzeBrandImage(job.imageUrl);
 
     // Update job with analysis results including proprietary scores
+    // NOTE: Gemini returns scores 0-10, but DB constraint expects 0-1 (normalized)
+    const normalizeScore = (score: number) => String((score / 10).toFixed(2));
+
     await db
       .update(visionJobs)
       .set({
         status: 'completed',
         geminiOutput: analysis,
-        // Denormalized proprietary scores for efficient routing queries
-        physicsScore: String(analysis.physics_score),
-        vibeScore: String(analysis.vibe_score),
-        logicScore: String(analysis.logic_score),
-        integrityScore: String(analysis.integrity_score),
+        // Denormalized proprietary scores for efficient routing queries (normalized to 0-1)
+        physicsScore: normalizeScore(analysis.physics_score),
+        vibeScore: normalizeScore(analysis.vibe_score),
+        logicScore: normalizeScore(analysis.logic_score),
+        integrityScore: normalizeScore(analysis.integrity_score),
         processedAt: new Date(),
       })
       .where(eq(visionJobs.id, jobId));

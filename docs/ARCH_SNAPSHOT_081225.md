@@ -1,6 +1,6 @@
 # Architecture Snapshot
 
-**Generated**: 2025-12-07T11:10:56.415Z
+**Generated**: 2025-12-07T16:30:26.582Z
 **Project**: Longevity Valley Brand Content Factory
 **Phase**: 3B + 3C (Brand Analysis + Video Director Mode)
 
@@ -57,12 +57,15 @@
     │   ├── ARCH_SNAPSHOT_061225.md
     │   ├── ARCH_SNAPSHOT_071225.md
     │   ├── ARCH_SNAPSHOT.md
+    │   ├── CHANGELOG_PHASE4_FIXES.md
     │   ├── CTO_TECHNICAL_REPORT_PHASE4.md
     │   ├── DIRECTOR_PERSONA_SCHEMA.md
+    │   ├── ROOT_CAUSE_ANALYSIS_AUDIT.md
     │   ├── SCHEMA_INTEGRITY_REPORT.md
     │   ├── SECURITY_VERIFICATION_REPORT.md
     │   ├── SECURITY.md
-    │   └── TEST_REPORT.md
+    │   ├── TEST_REPORT.md
+    │   └── VERIFICATION_REPORT_071225.md
     ├── drizzle
     │   └── migrations
     │       ├── meta
@@ -72,8 +75,10 @@
     │       └── 0001_fix_schema_sync.sql
     ├── scripts
     │   ├── add-processing-enum.mjs
+    │   ├── apply-phase4-migration.ts
     │   ├── consult-cto.ts
     │   ├── debug-latest-job.ts
+    │   ├── e2e-verify-phase4.sh
     │   ├── eval-matrix.ts
     │   ├── eval-rashomon.ts
     │   ├── generate-arch-report.ts
@@ -113,7 +118,9 @@
     │   │   │   └── FileDropzone.tsx
     │   │   ├── DirectorMode.tsx
     │   │   ├── ErrorBoundary.tsx
-    │   │   └── useDirector.ts
+    │   │   ├── useAuth.tsx
+    │   │   ├── useDirector.ts
+    │   │   └── useLounge.ts
     │   ├── config
     │   │   └── directors.ts
     │   ├── lib

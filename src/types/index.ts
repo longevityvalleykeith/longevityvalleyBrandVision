@@ -68,7 +68,127 @@ export type ProductionEngine = 'KLING' | 'LUMA' | 'GEMINI_PRO';
 export type UserPlan = 'free' | 'pro' | 'enterprise';
 
 // =============================================================================
-// GEMINI ANALYSIS OUTPUT
+// TWO-STEP ARCHITECTURE: THE EYE (Raw Analysis)
+// =============================================================================
+
+/**
+ * RawPixelAnalysis - Objective, Director-agnostic image analysis
+ *
+ * This is the output of "The Eye" - pure pixel analysis without
+ * any personality or interpretation layered on top.
+ *
+ * Cached and reused when users switch Directors.
+ */
+export interface RawPixelAnalysis {
+  /** Detected brand attributes from pixels */
+  brand_attributes: {
+    primary_colors: string[];
+    typography_style?: string;
+    mood: string;
+    industry?: string;
+  };
+
+  /** Visual composition analysis */
+  visual_elements: {
+    composition: string;
+    focal_points: string[];
+    style_keywords: string[];
+    /** Detected objects in the scene */
+    detected_objects?: string[];
+    /** OCR text found in image */
+    detected_text?: string[];
+  };
+
+  /** Quality metrics */
+  quality_score: number; // 0-10
+  integrity_score: number; // 0-1
+
+  /** The Trinity - Raw scores before Director bias applied */
+  physics_score: number; // 0-10: Motion complexity
+  vibe_score: number; // 0-10: Emotional impact
+  logic_score: number; // 0-10: Narrative clarity
+
+  /** Brief rationale for each score */
+  scoring_rationale: {
+    physics: string;
+    vibe: string;
+    logic: string;
+  };
+
+  /** Timestamp of analysis */
+  analyzed_at: Date;
+}
+
+// =============================================================================
+// TWO-STEP ARCHITECTURE: THE VOICE (Director Pitch)
+// =============================================================================
+
+/**
+ * SceneBoardFrame - A single keyframe in the video timeline
+ */
+export interface SceneBoardFrame {
+  /** Timestamp (e.g., "0s", "2.5s", "5s") */
+  time: string;
+  /** Visual description for this moment */
+  visual: string;
+  /** Camera movement/position */
+  camera: string;
+}
+
+/**
+ * SceneBoard - Temporal breakdown of the video
+ */
+export interface SceneBoard {
+  start: SceneBoardFrame;
+  middle: SceneBoardFrame;
+  end: SceneBoardFrame;
+}
+
+/**
+ * DirectorPitch - The Director's interpretation of raw analysis
+ *
+ * This is the output of "The Voice" - a specific Director's
+ * creative interpretation with their personality, biases, and style.
+ */
+export interface DirectorPitch {
+  /** The Director who created this pitch */
+  director_id: string;
+
+  /** The 3-Beat Pulse commentary */
+  three_beat_pulse: {
+    vision: string; // What's the subject?
+    safety: string; // What must we protect?
+    magic: string; // Why this engine? What feeling?
+  };
+
+  /** Formatted director commentary with emojis */
+  director_commentary: string;
+
+  /** Temporal scene breakdown */
+  scene_board: SceneBoard;
+
+  /** Biased scores (after Director multipliers applied) */
+  biased_scores: {
+    physics: number;
+    vibe: number;
+    logic: number;
+  };
+
+  /** Final routing decision */
+  recommended_engine: 'kling' | 'luma';
+
+  /** Style preset recommendation */
+  recommended_style_id: string;
+
+  /** Risk level based on Director profile */
+  risk_level: 'Safe' | 'Balanced' | 'Experimental';
+
+  /** Timestamp of pitch generation */
+  generated_at: Date;
+}
+
+// =============================================================================
+// GEMINI ANALYSIS OUTPUT (Legacy + Combined)
 // =============================================================================
 
 export interface GeminiAnalysisOutput {
@@ -102,8 +222,14 @@ export interface GeminiAnalysisOutput {
   // Director Commentary - Film Director style explanation of routing decision
   director_commentary?: string;
 
+  // Scene Board (temporal breakdown)
+  scene_board?: SceneBoard;
+
   recommended_style_id?: string;
   recommended_engine?: 'kling' | 'luma'; // Based on physics vs vibe scores
+
+  // Director metadata (when using Two-Step Architecture)
+  director_id?: string;
 }
 
 // =============================================================================

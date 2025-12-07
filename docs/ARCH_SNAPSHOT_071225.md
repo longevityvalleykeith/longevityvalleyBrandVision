@@ -1,6 +1,6 @@
 # Architecture Snapshot
 
-**Generated**: 2025-12-06T19:06:31.345Z
+**Generated**: 2025-12-07T07:11:18.594Z
 **Project**: Longevity Valley Brand Content Factory
 **Phase**: 3B + 3C (Brand Analysis + Video Director Mode)
 
@@ -44,10 +44,17 @@
     │   │   └── prepare-commit-msg
     │   └── pre-commit
     ├── docs
+    │   ├── Opus 4.5
+    │   │   ├── CTO_REVIEW_SCORING_MATRIX.md
+    │   │   ├── DIRECTOR_PERSONALITY_UX_FLOW.md
+    │   │   └── DIRECTOR_SOUL_GAP_ANALYSIS.md
+    │   ├── .DS_Store
     │   ├── ARCH_SNAPSHOT_041225.md
     │   ├── ARCH_SNAPSHOT_051225.md
     │   ├── ARCH_SNAPSHOT_061225.md
+    │   ├── ARCH_SNAPSHOT_071225.md
     │   ├── ARCH_SNAPSHOT.md
+    │   ├── DIRECTOR_PERSONA_SCHEMA.md
     │   ├── SCHEMA_INTEGRITY_REPORT.md
     │   ├── SECURITY_VERIFICATION_REPORT.md
     │   ├── SECURITY.md
@@ -63,10 +70,12 @@
     │   ├── add-processing-enum.mjs
     │   ├── consult-cto.ts
     │   ├── debug-latest-job.ts
+    │   ├── eval-matrix.ts
     │   ├── generate-arch-report.ts
     │   ├── run-migration-now.ts
     │   ├── sentinel.ts
     │   ├── test-db-connection.ts
+    │   ├── test-director-soul.ts
     │   └── verify-schema.ts
     ├── src
     │   ├── app
@@ -88,6 +97,8 @@
     │   │   ├── DirectorMode.tsx
     │   │   ├── ErrorBoundary.tsx
     │   │   └── useDirector.ts
+    │   ├── config
+    │   │   └── directors.ts
     │   ├── lib
     │   │   └── trpc.ts
     │   ├── server

@@ -516,19 +516,30 @@ export default function BrandScanner() {
             {/* CTA - Proceed to Director's Lounge */}
             {analysisData.quality.integrity >= 0.6 && (
               <div className="mt-6 pt-6 border-t border-gray-200">
-                <a
-                  href="/lounge"
-                  className="block w-full py-4 px-6 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white font-bold text-center rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 transform hover:-translate-y-1"
+                <button
+                  onClick={() => {
+                    // Pass analysis data and brand context to /lounge
+                    // Note: Don't store preview (base64) - use imageUrl instead to avoid quota errors
+                    sessionStorage.setItem('studioTransition', JSON.stringify({
+                      analysisData,
+                      brandContext,
+                      imageUrl: analysisData.imageUrl,
+                      timestamp: Date.now(),
+                    }));
+                    // Navigate to lounge with carousel view
+                    window.location.href = '/lounge';
+                  }}
+                  className="block w-full py-4 px-6 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white font-bold text-center rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 transform hover:-translate-y-1 cursor-pointer"
                 >
                   <span className="flex items-center justify-center gap-3">
                     <span className="text-xl">🎬</span>
-                    <span>Proceed to Director's Lounge</span>
+                    <span>Meet Your AI Directors</span>
                     <span className="text-xl">→</span>
                   </span>
                   <span className="block text-sm font-normal opacity-80 mt-1">
-                    Meet 4 AI Directors & Create Your Video
+                    Carousel of 4 Personalized Pitches
                   </span>
-                </a>
+                </button>
               </div>
             )}
           </div>

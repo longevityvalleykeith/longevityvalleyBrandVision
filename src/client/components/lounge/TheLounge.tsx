@@ -18,7 +18,7 @@
  * @version 1.1.0
  */
 
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { DirectorGrid, DirectorGridSkeleton } from './DirectorGrid';
 import type { DirectorPitchData } from './DirectorCard';
 import ScenePreviewGrid from '../ScenePreviewGrid';
@@ -56,6 +56,128 @@ export function TheLounge({
   const [scenes, setScenes] = useState<SceneData[]>([]);
   const [brandContext, setBrandContext] = useState<BrandContext | null>(null);
   const [showContextForm, setShowContextForm] = useState(true);
+  const [currentDirectorIndex, setCurrentDirectorIndex] = useState(0);
+  const [hasStudioData, setHasStudioData] = useState(false);
+
+  // Check for data passed from /studio
+  useEffect(() => {
+    const studioTransition = sessionStorage.getItem('studioTransition');
+    if (studioTransition) {
+      try {
+        const data = JSON.parse(studioTransition);
+        // Set all the passed data
+        setImageUrl(data.imageUrl);
+        setImagePreview(data.imageUrl); // Use imageUrl directly (already on Supabase)
+        setBrandContext(data.brandContext);
+        setHasStudioData(true);
+
+        // If analysis data was already passed, extract director pitches
+        if (data.analysisData?.allDirectorPitches && data.analysisData.allDirectorPitches.length > 0) {
+          console.log('[TheLounge] 🎬 Using Rashomon Effect - All director pitches from analysis');
+          console.log(`[TheLounge] 📊 Received ${data.analysisData.allDirectorPitches.length} director pitches`);
+          console.log(`[TheLounge] ⭐ Recommended Director: ${data.analysisData.recommendedDirectorId || 'none'}`);
+
+          try {
+            // Transform backend director pitches to frontend format with validation
+            const directorPitches = data.analysisData.allDirectorPitches
+              .map((pitch: any, index: number) => {
+                // Validate required fields
+                if (!pitch?.directorId) {
+                  console.warn(`[TheLounge] ⚠️ Pitch ${index} missing directorId, skipping`);
+                  return null;
+                }
+
+                if (!pitch?.directorName || !pitch?.avatar) {
+                  console.warn(`[TheLounge] ⚠️ Pitch ${index} (${pitch.directorId}) missing name or avatar`);
+                }
+
+                if (!pitch?.biasedScores) {
+                  console.warn(`[TheLounge] ⚠️ Pitch ${index} (${pitch.directorId}) missing biasedScores`);
+                  return null;
+                }
+
+                // Safe transformation with fallbacks
+                return {
+                  id: pitch.directorId,
+                  name: pitch.directorName || pitch.directorId,
+                  avatar: pitch.avatar || '🎬',
+                  archetype: pitch.directorName || 'Unknown',
+                  quote: pitch.threeBeatPulse?.vision || 'No vision statement',
+                  stats: {
+                    physics: pitch.biasedScores?.physics ?? 0,
+                    vibe: pitch.biasedScores?.vibe ?? 0,
+                    logic: pitch.biasedScores?.logic ?? 0,
+                  },
+                  engine: pitch.recommendedEngine || 'kling',
+                  riskLevel: pitch.riskLevel || 'Balanced',
+                  pitch: pitch.commentary || 'No commentary available',
+                  commentary: pitch.threeBeatPulse || {
+                    vision: 'N/A',
+                    safety: 'N/A',
+                    magic: 'N/A',
+                  },
+                  isRecommended: pitch.directorId === data.analysisData.recommendedDirectorId,
+                };
+              })
+              .filter((pitch): pitch is NonNullable<typeof pitch> => pitch !== null);
+
+            if (directorPitches.length === 0) {
+              console.error('[TheLounge] ❌ No valid director pitches after transformation, using fallback');
+              throw new Error('No valid director pitches');
+            }
+
+            console.log(`[TheLounge] ✅ Successfully transformed ${directorPitches.length} director pitches`);
+            setDirectors(directorPitches);
+            setState('PITCHING');
+
+            // Set carousel to recommended director if available
+            const recommendedIndex = directorPitches.findIndex((d: any) => d.isRecommended);
+            if (recommendedIndex >= 0) {
+              console.log(`[TheLounge] 🎯 Starting carousel at recommended director (index ${recommendedIndex})`);
+              setCurrentDirectorIndex(recommendedIndex);
+            } else {
+              console.log('[TheLounge] ℹ️ No recommended director found, starting at index 0');
+            }
+          } catch (transformError) {
+            console.error('[TheLounge] ❌ Error transforming director pitches:', transformError);
+            console.log('[TheLounge] 🔄 Falling back to PATH B (onAnalyze or mock data)');
+            // Fall through to PATH B
+            setState('ANALYZING');
+
+            setTimeout(async () => {
+              if (onAnalyze) {
+                const pitches = await onAnalyze(data.imageUrl, data.brandContext);
+                setDirectors(pitches);
+              } else {
+                setDirectors(getMockDirectorPitches());
+              }
+              setState('PITCHING');
+            }, 1000);
+          }
+        } else {
+          // No director pitches yet, trigger analysis
+          setState('ANALYZING');
+
+          setTimeout(async () => {
+            if (onAnalyze) {
+              const pitches = await onAnalyze(data.imageUrl, data.brandContext);
+              setDirectors(pitches);
+            } else {
+              // Use mock data
+              setDirectors(getMockDirectorPitches());
+            }
+            setState('PITCHING');
+          }, 1000);
+        }
+
+        // Clear the sessionStorage after use
+        sessionStorage.removeItem('studioTransition');
+      } catch (error) {
+        console.error('Failed to parse studio transition data:', error);
+        setHasStudioData(false);
+      }
+    }
+  }, [onAnalyze]);
 
   // Handle brand context changes
   const handleContextChange = useCallback((context: BrandContext) => {
@@ -170,7 +292,19 @@ export function TheLounge({
     setDirectors([]);
     setSelectedDirectorId(null);
     setError(null);
+    setHasStudioData(false);
   }, []);
+
+  // Carousel navigation
+  const handleNextDirector = useCallback(() => {
+    setCurrentDirectorIndex(prev => (prev + 1) % directors.length);
+  }, [directors.length]);
+
+  const handlePrevDirector = useCallback(() => {
+    setCurrentDirectorIndex(prev => (prev - 1 + directors.length) % directors.length);
+  }, [directors.length]);
+
+  const currentDirector = directors[currentDirectorIndex];
 
   return (
     <div className="lounge-container">
@@ -187,8 +321,8 @@ export function TheLounge({
 
       {/* Main Content */}
       <main className="lounge-content">
-        {/* IDLE State - Brand Context + Upload Zone */}
-        {state === 'IDLE' && (
+        {/* IDLE State - Brand Context + Upload Zone (only if no studio data) */}
+        {state === 'IDLE' && !hasStudioData && (
           <div className="idle-state">
             {/* Brand Context Form - Collapsible */}
             <div className="context-form-section">
@@ -263,8 +397,8 @@ export function TheLounge({
           </>
         )}
 
-        {/* PITCHING State - Director Cards */}
-        {state === 'PITCHING' && (
+        {/* PITCHING State - Director Carousel (1 at a time) */}
+        {state === 'PITCHING' && currentDirector && (
           <>
             {imagePreview && (
               <div className="preview-section">
@@ -274,12 +408,83 @@ export function TheLounge({
                 </button>
               </div>
             )}
-            <DirectorGrid
-              directors={directors}
-              onSelect={handleSelectDirector}
-              selectedId={selectedDirectorId || undefined}
-              loadingId={loadingDirectorId || undefined}
-            />
+
+            {/* Director Carousel */}
+            <div className="director-carousel">
+              <div className="carousel-header">
+                <h2 className="carousel-title">Director's Pitch</h2>
+                <div className="carousel-counter">
+                  {currentDirectorIndex + 1} of {directors.length}
+                </div>
+              </div>
+
+              {/* Single Director Card */}
+              <div className={`carousel-card ${(currentDirector as any).isRecommended ? 'recommended' : ''}`}>
+                <div className="director-header">
+                  <span className="director-avatar">{currentDirector.avatar}</span>
+                  <div className="director-info">
+                    <div className="name-with-badge">
+                      <h3 className="director-name">{currentDirector.name}</h3>
+                      {(currentDirector as any).isRecommended && (
+                        <span className="recommended-badge">⭐ Recommended</span>
+                      )}
+                    </div>
+                    <p className="director-archetype">{currentDirector.archetype}</p>
+                    <p className="director-quote">"{currentDirector.quote}"</p>
+                  </div>
+                </div>
+
+                <div className="director-pitch">
+                  <h4>The Pitch:</h4>
+                  <p>{currentDirector.pitch}</p>
+                </div>
+
+                <div className="director-stats">
+                  <div className="stat">
+                    <span className="stat-label">Engine</span>
+                    <span className="stat-value">{currentDirector.engine}</span>
+                  </div>
+                  <div className="stat">
+                    <span className="stat-label">Risk</span>
+                    <span className="stat-value">{currentDirector.riskLevel}</span>
+                  </div>
+                </div>
+
+                <button
+                  onClick={() => handleSelectDirector(currentDirector.id)}
+                  className="select-director-btn"
+                >
+                  Select {currentDirector.name}
+                </button>
+              </div>
+
+              {/* Carousel Navigation */}
+              <div className="carousel-nav">
+                <button
+                  onClick={handlePrevDirector}
+                  className="nav-btn prev"
+                  disabled={directors.length <= 1}
+                >
+                  ← Previous
+                </button>
+                <div className="carousel-dots">
+                  {directors.map((_, index) => (
+                    <button
+                      key={index}
+                      onClick={() => setCurrentDirectorIndex(index)}
+                      className={`dot ${index === currentDirectorIndex ? 'active' : ''}`}
+                    />
+                  ))}
+                </div>
+                <button
+                  onClick={handleNextDirector}
+                  className="nav-btn next"
+                  disabled={directors.length <= 1}
+                >
+                  Next →
+                </button>
+              </div>
+            </div>
           </>
         )}
 
@@ -927,6 +1132,244 @@ const loungeStyles = `
 
   .proceed-icon {
     font-size: 1.5rem;
+  }
+
+  /* Rashomon Effect - Director Carousel Enhancements */
+  .carousel-card {
+    background: rgba(255, 255, 255, 0.05);
+    border: 2px solid rgba(255, 255, 255, 0.1);
+    border-radius: 16px;
+    padding: 32px;
+    transition: all 0.3s ease;
+  }
+
+  .carousel-card.recommended {
+    background: linear-gradient(135deg, rgba(255, 215, 0, 0.1) 0%, rgba(255, 140, 0, 0.05) 100%);
+    border-color: rgba(255, 215, 0, 0.4);
+    box-shadow: 0 0 30px rgba(255, 215, 0, 0.2);
+  }
+
+  .name-with-badge {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+
+  .recommended-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 4px 12px;
+    background: linear-gradient(135deg, rgba(255, 215, 0, 0.3) 0%, rgba(255, 140, 0, 0.2) 100%);
+    border: 1px solid rgba(255, 215, 0, 0.5);
+    color: #ffd700;
+    border-radius: 999px;
+    font-size: 0.75rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    animation: recommendedPulse 2s ease-in-out infinite;
+  }
+
+  @keyframes recommendedPulse {
+    0%, 100% {
+      box-shadow: 0 0 0 0 rgba(255, 215, 0, 0.4);
+    }
+    50% {
+      box-shadow: 0 0 10px 3px rgba(255, 215, 0, 0.2);
+    }
+  }
+
+  .director-header {
+    display: flex;
+    gap: 20px;
+    align-items: flex-start;
+    margin-bottom: 24px;
+  }
+
+  .director-avatar {
+    font-size: 3.5rem;
+    flex-shrink: 0;
+  }
+
+  .director-info {
+    flex: 1;
+  }
+
+  .director-name {
+    font-size: 1.75rem;
+    font-weight: 700;
+    margin: 0 0 8px;
+    color: white;
+  }
+
+  .director-archetype {
+    font-size: 0.875rem;
+    color: rgba(255, 255, 255, 0.6);
+    margin: 0 0 8px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+  }
+
+  .director-quote {
+    font-size: 1rem;
+    font-style: italic;
+    color: rgba(139, 92, 246, 0.9);
+    margin: 0;
+  }
+
+  .director-pitch {
+    margin-bottom: 24px;
+    padding: 20px;
+    background: rgba(0, 0, 0, 0.2);
+    border-radius: 12px;
+    border-left: 4px solid rgba(139, 92, 246, 0.5);
+  }
+
+  .director-pitch h4 {
+    font-size: 0.875rem;
+    color: rgba(255, 255, 255, 0.5);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin: 0 0 12px;
+  }
+
+  .director-pitch p {
+    font-size: 1rem;
+    line-height: 1.6;
+    color: rgba(255, 255, 255, 0.9);
+    margin: 0;
+  }
+
+  .director-stats {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 16px;
+    margin-bottom: 24px;
+  }
+
+  .stat {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .stat-label {
+    font-size: 0.75rem;
+    color: rgba(255, 255, 255, 0.5);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+
+  .stat-value {
+    font-size: 1.125rem;
+    font-weight: 600;
+    color: white;
+  }
+
+  .select-director-btn {
+    width: 100%;
+    padding: 14px 24px;
+    background: linear-gradient(135deg, #8b5cf6 0%, #6366f1 100%);
+    color: white;
+    border: none;
+    border-radius: 10px;
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+
+  .select-director-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(139, 92, 246, 0.4);
+  }
+
+  .carousel-card.recommended .select-director-btn {
+    background: linear-gradient(135deg, #ffd700 0%, #ff8c00 100%);
+    color: #1a1a2e;
+  }
+
+  .carousel-card.recommended .select-director-btn:hover {
+    box-shadow: 0 4px 12px rgba(255, 215, 0, 0.4);
+  }
+
+  .carousel-nav {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-top: 24px;
+    gap: 16px;
+  }
+
+  .nav-btn {
+    padding: 10px 20px;
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    color: white;
+    border-radius: 8px;
+    font-size: 0.875rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+
+  .nav-btn:hover:not(:disabled) {
+    background: rgba(139, 92, 246, 0.3);
+    border-color: rgba(139, 92, 246, 0.5);
+  }
+
+  .nav-btn:disabled {
+    opacity: 0.3;
+    cursor: not-allowed;
+  }
+
+  .carousel-dots {
+    display: flex;
+    gap: 8px;
+  }
+
+  .dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.2);
+    border: none;
+    cursor: pointer;
+    transition: all 0.2s;
+    padding: 0;
+  }
+
+  .dot.active {
+    background: rgba(139, 92, 246, 0.9);
+    transform: scale(1.3);
+  }
+
+  .dot:hover:not(.active) {
+    background: rgba(255, 255, 255, 0.4);
+  }
+
+  .carousel-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 24px;
+  }
+
+  .carousel-title {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: white;
+    margin: 0;
+  }
+
+  .carousel-counter {
+    font-size: 0.875rem;
+    color: rgba(255, 255, 255, 0.5);
+    padding: 6px 12px;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 999px;
   }
 `;
 

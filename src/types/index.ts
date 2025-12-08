@@ -416,6 +416,10 @@ export interface GeminiAnalysisOutput {
 
   // Director metadata (when using Two-Step Architecture)
   director_id?: string;
+
+  // Rashomon Effect - All 4 director pitches (Phase 4 enhancement)
+  all_director_pitches?: DirectorPitch[];
+  recommended_director_id?: string;
 }
 
 // =============================================================================
@@ -570,6 +574,13 @@ export function createDirectorState(jobId: string, source_image_url: string): Di
     completed_at: null,
   };
 }
+
+// =============================================================================
+// CULTURAL DNA EXPORTS (Phase 3A-B)
+// =============================================================================
+
+// Re-export all cultural types and schemas
+export * from './cultural';
 
 // =============================================================================
 // TYPE EXPORTS

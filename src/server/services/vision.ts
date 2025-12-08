@@ -26,6 +26,7 @@ import {
   type DirectorProfile,
   DEFAULT_DIRECTOR_ID,
 } from '@/config/directors';
+import type { CulturalContextInput } from '@/types/cultural';
 
 // =============================================================================
 // CONFIGURATION (Lazy Initialization)
@@ -109,10 +110,54 @@ Return ONLY valid JSON. No commentary.`;
 // STEP 2: THE VOICE - Director Pitch Prompt Template
 // =============================================================================
 
-function buildDirectorPitchPrompt(director: DirectorProfile, rawAnalysis: RawPixelAnalysis): string {
+function buildDirectorPitchPrompt(
+  director: DirectorProfile,
+  rawAnalysis: RawPixelAnalysis,
+  culturalContext?: CulturalContextInput
+): string {
   // Determine the dominant bias for scoring emphasis
   const biasEntries = Object.entries(director.biases) as [string, number][];
   const dominantBias = biasEntries.find(([, value]) => value > 1)?.[0]?.replace('Multiplier', '') || 'balanced';
+
+  // Build cultural voice adaptation section (Phase 3A-B)
+  let culturalSection = '';
+  if (culturalContext) {
+    const languageMap: Record<string, string> = {
+      'en': 'English',
+      'zh-CN': 'Simplified Chinese (简体中文)',
+      'zh-TW': 'Traditional Chinese (繁體中文)',
+      'ms': 'Bahasa Malaysia',
+    };
+
+    const formalityGuide: Record<string, string> = {
+      'casual': 'Use conversational, friendly language. Short sentences. Relatable tone.',
+      'professional': 'Use business-appropriate language. Clear, confident, but approachable.',
+      'formal': 'Use respectful, polished language. Proper grammar. Dignified tone.',
+    };
+
+    const regionGuide: Record<string, string> = {
+      'western': 'Use direct communication style. Value clarity and individuality.',
+      'china': 'Use harmonious language. Value collective benefit and reliability. Avoid overly aggressive claims.',
+      'malaysia': 'Use warm, multicultural-aware language. Balance professionalism with warmth.',
+      'taiwan': 'Use refined, sophisticated language. Value quality and craftsmanship.',
+    };
+
+    culturalSection = `
+
+## CULTURAL VOICE ADAPTATION (Phase 3A-B)
+**Output Language**: ${languageMap[culturalContext.outputLanguage] || 'English'}
+**Cultural Region**: ${culturalContext.region}
+**Formality Level**: ${culturalContext.formality}
+**Warmth Level**: ${Math.round(culturalContext.warmth * 100)}%
+
+**Language Guide**: ${formalityGuide[culturalContext.formality] || formalityGuide['professional']}
+**Cultural Guide**: ${regionGuide[culturalContext.region] || regionGuide['western']}
+
+IMPORTANT: Generate your Three Beat Pulse and Scene Board descriptions in ${languageMap[culturalContext.outputLanguage] || 'English'}.
+Adapt your vocabulary and idioms to feel natural for the ${culturalContext.region} market.
+${culturalContext.warmth > 0.6 ? 'Use warmer, more empathetic language.' : ''}
+${culturalContext.warmth < 0.4 ? 'Keep language professional and objective.' : ''}`;
+  }
 
   return `You are an AI Brand Analyst with a distinct personality.
 
@@ -123,6 +168,7 @@ ${director.name}. ${director.systemPromptModifier}
 Use words like [${director.voice.vocabulary.join(', ')}].
 Avoid words like [${director.voice.forbidden.join(', ')}].
 Speak with: ${director.voice.tone}
+${culturalSection}
 
 ## SCORING BIAS
 Weigh ${dominantBias.toUpperCase()} scores higher in your assessment.
@@ -338,13 +384,17 @@ Incorporate this context when assessing mood, industry, and message clarity (log
  * This is the "cheap" step - lightweight LLM call that can be
  * repeated quickly when users switch Directors.
  *
+ * Phase 3A-B: Now includes cultural context for localized voice/tone.
+ *
  * @param rawAnalysis - The cached raw pixel analysis
  * @param directorId - ID of the Director persona to use
+ * @param culturalContext - Cultural context for localized Director voice (Phase 3A-B)
  * @returns The Director's interpretation and pitch
  */
 export async function generateDirectorPitch(
   rawAnalysis: RawPixelAnalysis,
-  directorId: string = DEFAULT_DIRECTOR_ID
+  directorId: string = DEFAULT_DIRECTOR_ID,
+  culturalContext?: CulturalContextInput
 ): Promise<DirectorPitch> {
   const director = getDirectorById(directorId);
 
@@ -357,11 +407,14 @@ export async function generateDirectorPitch(
   console.log(`🎯 Preferred Engine: ${director.preferredEngine}`);
   console.log(`⚠️  Risk Profile: ${director.riskProfile.label} (threshold: ${director.riskProfile.hallucinationThreshold})`);
   console.log(`🧠 Biases: Physics=${director.biases.physicsMultiplier}x, Vibe=${director.biases.vibeMultiplier}x, Logic=${director.biases.logicMultiplier}x`);
+  if (culturalContext) {
+    console.log(`🌍 Cultural Voice: ${culturalContext.language}/${culturalContext.region} (${culturalContext.formality})`);
+  }
   console.log(`${'='.repeat(60)}\n`);
 
   try {
-    // Build Director-specific prompt
-    const prompt = buildDirectorPitchPrompt(director, rawAnalysis);
+    // Build Director-specific prompt with cultural context
+    const prompt = buildDirectorPitchPrompt(director, rawAnalysis, culturalContext);
 
     // Generate pitch (text-only, no image needed)
     const result = await getModel().generateContent(prompt);
@@ -547,6 +600,93 @@ export async function analyzeBrandImage(
   });
 
   return combined;
+}
+
+/**
+ * Generate pitches from ALL 4 directors (Rashomon Effect).
+ *
+ * Same brand analysis, 4 unique perspectives - each director interprets
+ * the brand through their artistic lens.
+ *
+ * Phase 3A-B: Now includes cultural context for localized voice/tone.
+ *
+ * @param imageUrl - Public URL of the brand image
+ * @param brandContext - Optional brand context for enhanced analysis
+ * @param culturalContext - Cultural context for localized Director voice (Phase 3A-B)
+ * @returns Array of all 4 director pitches + raw analysis
+ */
+export async function generateAllDirectorPitches(
+  imageUrl: string,
+  brandContext?: string,
+  culturalContext?: CulturalContextInput
+): Promise<{
+  rawAnalysis: RawPixelAnalysis;
+  directorPitches: DirectorPitch[];
+  recommendedDirectorId: string;
+}> {
+  console.log(`\n${'🎬'.repeat(20)}`);
+  console.log(`[Vision Service] RASHOMON EFFECT ACTIVATED`);
+  console.log(`Generating 4 unique perspectives on the same brand...`);
+  if (culturalContext) {
+    console.log(`🌍 Cultural Context: ${culturalContext.language}/${culturalContext.region} (${culturalContext.formality})`);
+  }
+  console.log(`${'🎬'.repeat(20)}\n`);
+
+  // Step 1: THE EYE - Single objective analysis
+  const rawAnalysis = await analyzeRawPixels(imageUrl, brandContext);
+
+  // Determine recommended director based on raw scores
+  const recommendedDirectorId = determineRecommendedDirector(rawAnalysis);
+
+  // Step 2: THE VOICE - All 4 directors pitch their vision with cultural adaptation
+  const allDirectors = ['newtonian', 'visionary', 'minimalist', 'provocateur'];
+  const directorPitches: DirectorPitch[] = [];
+
+  for (const directorId of allDirectors) {
+    console.log(`\n📣 Requesting pitch from: ${directorId.toUpperCase()}`);
+    const pitch = await generateDirectorPitch(rawAnalysis, directorId, culturalContext);
+    directorPitches.push(pitch);
+  }
+
+  console.log(`\n✅ All 4 director perspectives generated!`);
+  console.log(`🎯 Recommended Director: ${recommendedDirectorId}\n`);
+
+  return {
+    rawAnalysis,
+    directorPitches,
+    recommendedDirectorId,
+  };
+}
+
+/**
+ * Determine which director is most suitable based on raw scores.
+ * Goal: 50% conversion rate for recommended director.
+ */
+function determineRecommendedDirector(rawAnalysis: RawPixelAnalysis): string {
+  const { physics_score, vibe_score, logic_score } = rawAnalysis;
+
+  // Physics-dominant → Newtonian
+  if (physics_score >= vibe_score && physics_score >= logic_score) {
+    return 'newtonian';
+  }
+
+  // Vibe-dominant → Visionary
+  if (vibe_score >= logic_score) {
+    return 'visionary';
+  }
+
+  // Logic-dominant → Minimalist
+  if (logic_score > 7) {
+    return 'minimalist';
+  }
+
+  // Wildcard for experimental brands → Provocateur
+  if (vibe_score > 8 && physics_score > 6) {
+    return 'provocateur';
+  }
+
+  // Default to Visionary (safest bet for most brands)
+  return 'visionary';
 }
 
 // =============================================================================

@@ -9,6 +9,7 @@
  */
 
 import type { GeminiAnalysisOutput } from '@/types';
+import { getDirectorById } from '@/config/directors';
 
 // =============================================================================
 // FRONTEND TYPES
@@ -81,6 +82,35 @@ export interface BrandAnalysisData {
 
   /** Recommended style preset ID (if applicable) */
   recommendedStyleId?: string;
+
+  /** Rashomon Effect - All 4 director pitches (Phase 4 enhancement) */
+  allDirectorPitches?: Array<{
+    directorId: string;
+    directorName: string;
+    avatar: string;
+    threeBeatPulse: {
+      vision: string;
+      safety: string;
+      magic: string;
+    };
+    commentary: string;
+    sceneBoard: {
+      start: { time: string; visual: string; camera: string };
+      middle: { time: string; visual: string; camera: string };
+      end: { time: string; visual: string; camera: string };
+    };
+    biasedScores: {
+      physics: number;
+      vibe: number;
+      logic: number;
+    };
+    recommendedEngine: 'kling' | 'luma';
+    recommendedStyleId: string;
+    riskLevel: 'Safe' | 'Balanced' | 'Experimental';
+  }>;
+
+  /** Recommended director ID (based on raw scores) */
+  recommendedDirectorId?: string;
 
   /** Error message (if status is 'failed') */
   errorMessage?: string;
@@ -189,6 +219,30 @@ export function transformVisionJobToAnalysisData(
   // Add director commentary if available
   if (geminiOutput.director_commentary) {
     result.directorCommentary = geminiOutput.director_commentary;
+  }
+
+  // Add Rashomon Effect data if available (all 4 director pitches)
+  if (geminiOutput.all_director_pitches && Array.isArray(geminiOutput.all_director_pitches)) {
+    result.allDirectorPitches = geminiOutput.all_director_pitches.map((pitch) => {
+      const director = getDirectorById(pitch.director_id);
+      return {
+        directorId: pitch.director_id,
+        directorName: director?.name || pitch.director_id,
+        avatar: director?.avatar || '🎬',
+        threeBeatPulse: pitch.three_beat_pulse,
+        commentary: pitch.director_commentary,
+        sceneBoard: pitch.scene_board,
+        biasedScores: pitch.biased_scores,
+        recommendedEngine: pitch.recommended_engine,
+        recommendedStyleId: pitch.recommended_style_id,
+        riskLevel: pitch.risk_level,
+      };
+    });
+  }
+
+  // Add recommended director ID
+  if (geminiOutput.recommended_director_id) {
+    result.recommendedDirectorId = geminiOutput.recommended_director_id;
   }
 
   return result;

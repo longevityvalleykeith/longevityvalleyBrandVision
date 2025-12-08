@@ -23,9 +23,14 @@ import {
 import { PaginationSchema, uuid } from '../types/validation';
 import { processUploadedFile, scanForMalware } from './fileValidation';
 import type { PaginatedResponse } from '../types';
+import {
+  CulturalContextInputSchema,
+  DEFAULT_CULTURAL_CONTEXT,
+  type CulturalContextInput,
+} from '../types/cultural';
 import { transformVisionJobToAnalysisData, type BrandAnalysisData } from './utils/visionAdapter';
 import { uploadToSupabaseStorage } from './utils/supabaseStorage';
-import { analyzeBrandImage } from './services/vision';
+import { analyzeBrandImage, generateAllDirectorPitches } from './services/vision';
 
 // =============================================================================
 // INPUT SCHEMAS
@@ -45,6 +50,8 @@ const UploadImageSchema = z.object({
     scenarios: z.string().optional(),
     ctaOffer: z.string().optional(),
   }).optional(),
+  /** Cultural context for localized voice/tone (Phase 3A-B) */
+  culturalContext: CulturalContextInputSchema.optional(),
 });
 
 const GetJobSchema = z.object({
@@ -166,8 +173,11 @@ export const visionRouter = router({
           ipAddress: 'system',
         }).catch(() => { /* Audit log is non-critical */ });
 
-        // Queue for processing (non-blocking)
-        queueVisionAnalysis(result.id).catch((err) => {
+        // Resolve cultural context (use provided or default)
+        const culturalContext = input.culturalContext || DEFAULT_CULTURAL_CONTEXT;
+
+        // Queue for processing with cultural context (non-blocking)
+        queueVisionAnalysis(result.id, culturalContext).catch((err) => {
           console.error('[VisionRouter] Failed to queue analysis:', err.message);
         });
 
@@ -444,8 +454,8 @@ export const visionRouter = router({
           })
           .where(eq(visionJobs.id, input.jobId));
 
-        // Queue for processing
-        await queueVisionAnalysis(input.jobId);
+        // Queue for processing with default cultural context (retry preserves original request)
+        await queueVisionAnalysis(input.jobId, DEFAULT_CULTURAL_CONTEXT);
 
         return { success: true, retryCount: job.retryCount + 1 };
       }, 'retryJob');
@@ -462,12 +472,17 @@ export const visionRouter = router({
  * Processes brand image analysis using Gemini Vision API and updates the database.
  *
  * @param jobId - Vision job UUID
+ * @param culturalContext - Cultural context for localized voice/tone
  */
-async function queueVisionAnalysis(jobId: string): Promise<void> {
+async function queueVisionAnalysis(
+  jobId: string,
+  culturalContext: CulturalContextInput
+): Promise<void> {
   console.log(`[Vision Service] Starting analysis for job: ${jobId}`);
+  console.log(`[Vision Service] Cultural context: ${culturalContext.language}/${culturalContext.region}`);
 
   // Run analysis asynchronously (non-blocking)
-  processVisionAnalysis(jobId).catch((error) => {
+  processVisionAnalysis(jobId, culturalContext).catch((error) => {
     console.error(`[Vision Service] Analysis failed for job ${jobId}:`, error);
   });
 }
@@ -476,8 +491,12 @@ async function queueVisionAnalysis(jobId: string): Promise<void> {
  * Process vision analysis asynchronously
  *
  * @param jobId - Vision job UUID
+ * @param culturalContext - Cultural context for localized voice/tone
  */
-async function processVisionAnalysis(jobId: string): Promise<void> {
+async function processVisionAnalysis(
+  jobId: string,
+  culturalContext: CulturalContextInput
+): Promise<void> {
   try {
     // Fetch job from database
     const job = await db.query.visionJobs.findFirst({
@@ -495,12 +514,56 @@ async function processVisionAnalysis(jobId: string): Promise<void> {
       .set({ status: 'processing' })
       .where(eq(visionJobs.id, jobId));
 
-    // Perform AI analysis with Proprietary Scoring Matrix and brand context
-    const analysis = await analyzeBrandImage(
+    // RASHOMON EFFECT: Generate pitches from ALL 4 directors with cultural context
+    const rashomonResult = await generateAllDirectorPitches(
       job.imageUrl,
-      undefined, // Use default Director
-      job.brandEssencePrompt || undefined // Pass brand context if available
+      job.brandEssencePrompt || undefined,
+      culturalContext
     );
+
+    // Get the recommended director's pitch for main analysis data
+    const recommendedPitch = rashomonResult.directorPitches.find(
+      p => p.director_id === rashomonResult.recommendedDirectorId
+    ) || rashomonResult.directorPitches[0]!;
+
+    // Build combined output with all director pitches
+    const analysis = {
+      // Raw analysis (same for all directors)
+      brand_attributes: rashomonResult.rawAnalysis.brand_attributes,
+      visual_elements: {
+        composition: rashomonResult.rawAnalysis.visual_elements.composition,
+        focal_points: rashomonResult.rawAnalysis.visual_elements.focal_points,
+        style_keywords: rashomonResult.rawAnalysis.visual_elements.style_keywords,
+      },
+      quality_score: rashomonResult.rawAnalysis.quality_score,
+      integrity_score: rashomonResult.rawAnalysis.integrity_score,
+      scoring_rationale: rashomonResult.rawAnalysis.scoring_rationale,
+
+      // Recommended director's interpretation (for backwards compatibility)
+      physics_score: recommendedPitch.biased_scores.physics,
+      vibe_score: recommendedPitch.biased_scores.vibe,
+      logic_score: recommendedPitch.biased_scores.logic,
+      director_commentary: recommendedPitch.director_commentary,
+      scene_board: recommendedPitch.scene_board,
+      recommended_style_id: recommendedPitch.recommended_style_id,
+      recommended_engine: recommendedPitch.recommended_engine,
+      director_id: recommendedPitch.director_id,
+
+      // RASHOMON EFFECT: All 4 director perspectives
+      all_director_pitches: rashomonResult.directorPitches,
+      recommended_director_id: rashomonResult.recommendedDirectorId,
+
+      // CULTURAL DNA: Context used for localized voice/tone (Phase 3A-B)
+      cultural_context: {
+        language: culturalContext.language,
+        region: culturalContext.region,
+        outputLanguage: culturalContext.outputLanguage,
+        formality: culturalContext.formality,
+        warmth: culturalContext.warmth,
+        source: culturalContext.source,
+        confidence: culturalContext.confidence,
+      },
+    };
 
     // Update job with analysis results including proprietary scores
     // NOTE: Gemini returns scores 0-10, but DB constraint expects 0-1 (normalized)
@@ -510,7 +573,7 @@ async function processVisionAnalysis(jobId: string): Promise<void> {
       .update(visionJobs)
       .set({
         status: 'completed',
-        geminiOutput: analysis,
+        geminiOutput: analysis as any, // Extended with all_director_pitches
         // Denormalized proprietary scores for efficient routing queries (normalized to 0-1)
         physicsScore: normalizeScore(analysis.physics_score),
         vibeScore: normalizeScore(analysis.vibe_score),
@@ -520,9 +583,11 @@ async function processVisionAnalysis(jobId: string): Promise<void> {
       })
       .where(eq(visionJobs.id, jobId));
 
-    console.log(`[Vision Service] Analysis completed for job: ${jobId}`);
-    console.log(`[Vision Service] Proprietary Scores - Physics: ${analysis.physics_score}, Vibe: ${analysis.vibe_score}, Logic: ${analysis.logic_score}`);
+    console.log(`[Vision Service] Rashomon analysis completed for job: ${jobId}`);
+    console.log(`[Vision Service] Generated ${rashomonResult.directorPitches.length} director perspectives`);
+    console.log(`[Vision Service] Recommended Director: ${rashomonResult.recommendedDirectorId}`);
     console.log(`[Vision Service] Recommended Engine: ${analysis.recommended_engine}`);
+    console.log(`[Vision Service] Cultural Voice: ${culturalContext.language}/${culturalContext.region} (${culturalContext.formality})`);
   } catch (error) {
     console.error(`[Vision Service] Analysis error for job ${jobId}:`, error);
 

@@ -19,17 +19,35 @@
  */
 
 import React, { useState, useCallback, useEffect } from 'react';
+import Link from 'next/link';
 import { DirectorGrid, DirectorGridSkeleton } from './DirectorGrid';
 import type { DirectorPitchData } from './DirectorCard';
 import ScenePreviewGrid from '../ScenePreviewGrid';
 import type { SceneData } from '../ScenePreviewCard';
 import BrandContextForm, { type BrandContext } from '../BrandContextForm';
+import MicroEnrichmentToast from '../MicroEnrichmentToast';
+import DirectorSceneApproval from '../DirectorSceneApproval';
+import type { CulturalContextInput } from '@/types/cultural';
+import type { DirectorProfile } from '@/config/directors';
+import {
+  type ProgressiveBrandData,
+  createDefaultProgressiveData,
+  calculateQualityTier,
+} from '@/config/progressiveBrandContent';
+import type { VideoScene } from '@/types';
 
 // =============================================================================
 // TYPES
 // =============================================================================
 
-type LoungeState = 'IDLE' | 'UPLOADING' | 'ANALYZING' | 'PITCHING' | 'STORYBOARD' | 'SELECTED' | 'ERROR';
+/**
+ * P1-2/P1-4 FIX: LoungeState type
+ * Note: 'STORYBOARD' is deprecated - always use 'SCENE_APPROVAL' for scene review
+ */
+type LoungeState = 'IDLE' | 'UPLOADING' | 'ANALYZING' | 'PITCHING' | 'STORYBOARD' | 'SCENE_APPROVAL' | 'SELECTED' | 'ERROR';
+
+/** Extended DirectorPitchData with recommendation flag */
+type ExtendedDirectorPitchData = DirectorPitchData & { isRecommended?: boolean };
 
 interface TheLoungeProps {
   /** Callback when a Director is selected */
@@ -55,20 +73,69 @@ export function TheLounge({
   const [loadingDirectorId, setLoadingDirectorId] = useState<string | null>(null);
   const [scenes, setScenes] = useState<SceneData[]>([]);
   const [brandContext, setBrandContext] = useState<BrandContext | null>(null);
+  const [culturalContext, setCulturalContext] = useState<CulturalContextInput | null>(null);
   const [showContextForm, setShowContextForm] = useState(true);
   const [currentDirectorIndex, setCurrentDirectorIndex] = useState(0);
   const [hasStudioData, setHasStudioData] = useState(false);
+  // Progressive Brand Content State (Stage 2 & 3)
+  const [showMicroEnrichment, setShowMicroEnrichment] = useState(false);
+  const [progressiveBrandData, setProgressiveBrandData] = useState<ProgressiveBrandData>(createDefaultProgressiveData());
+  // Stage 3: Director-led scene approval mode
+  const [useDirectorApproval, setUseDirectorApproval] = useState(true);
 
-  // Check for data passed from /studio
+  /**
+   * Cross-Page Data Transfer Pattern
+   *
+   * Checks for analysis data passed from /studio page via sessionStorage.
+   * The Studio page saves its analysis results before redirecting here,
+   * allowing users to continue their workflow without re-uploading.
+   *
+   * Data structure expected:
+   * - imageUrl: Supabase storage URL of the uploaded brand asset
+   * - brandContext: User-provided brand information
+   * - culturalContext: Language/region settings
+   * - analysisData: Pre-computed director pitches (Rashomon Effect)
+   *
+   * @see src/app/studio/page.tsx for data writing logic
+   */
   useEffect(() => {
-    const studioTransition = sessionStorage.getItem('studioTransition');
+    let studioTransition: string | null = null;
+
+    // P0-2 FIX: Defensive sessionStorage access with error handling
+    try {
+      studioTransition = sessionStorage.getItem('studioTransition');
+    } catch (storageError) {
+      console.error('[TheLounge] ❌ sessionStorage access failed:', storageError);
+      return; // Exit gracefully if storage is unavailable
+    }
+
     if (studioTransition) {
       try {
         const data = JSON.parse(studioTransition);
+
+        // P3-4 FIX: Check for stale data (older than 30 minutes)
+        const STALE_THRESHOLD_MS = 30 * 60 * 1000; // 30 minutes
+        if (data.timestamp && Date.now() - data.timestamp > STALE_THRESHOLD_MS) {
+          console.warn('[TheLounge] ⚠️ Studio data is stale (>30min), ignoring');
+          sessionStorage.removeItem('studioTransition');
+          return;
+        }
+
+        // P0-2 FIX: Validate required data structure
+        if (!data.imageUrl || typeof data.imageUrl !== 'string') {
+          console.error('[TheLounge] ❌ Invalid imageUrl in studio data');
+          sessionStorage.removeItem('studioTransition');
+          return;
+        }
+
         // Set all the passed data
         setImageUrl(data.imageUrl);
         setImagePreview(data.imageUrl); // Use imageUrl directly (already on Supabase)
         setBrandContext(data.brandContext);
+        if (data.culturalContext) {
+          setCulturalContext(data.culturalContext);
+          console.log('[TheLounge] 🌍 Cultural context received:', data.culturalContext.language, data.culturalContext.region);
+        }
         setHasStudioData(true);
 
         // If analysis data was already passed, extract director pitches
@@ -78,6 +145,9 @@ export function TheLounge({
           console.log(`[TheLounge] ⭐ Recommended Director: ${data.analysisData.recommendedDirectorId || 'none'}`);
 
           try {
+            // P0-3 FIX: Store recommended ID before transformation for stable lookup
+            const recommendedId = data.analysisData.recommendedDirectorId;
+
             // Transform backend director pitches to frontend format with validation
             const directorPitches = data.analysisData.allDirectorPitches
               .map((pitch: any, index: number) => {
@@ -110,16 +180,15 @@ export function TheLounge({
                   },
                   engine: pitch.recommendedEngine || 'kling',
                   riskLevel: pitch.riskLevel || 'Balanced',
-                  pitch: pitch.commentary || 'No commentary available',
                   commentary: pitch.threeBeatPulse || {
-                    vision: 'N/A',
+                    vision: pitch.commentary || 'No commentary available',
                     safety: 'N/A',
                     magic: 'N/A',
                   },
-                  isRecommended: pitch.directorId === data.analysisData.recommendedDirectorId,
+                  isRecommended: pitch.directorId === recommendedId,
                 };
               })
-              .filter((pitch): pitch is NonNullable<typeof pitch> => pitch !== null);
+              .filter((item: ExtendedDirectorPitchData | null): item is ExtendedDirectorPitchData => item !== null);
 
             if (directorPitches.length === 0) {
               console.error('[TheLounge] ❌ No valid director pitches after transformation, using fallback');
@@ -130,13 +199,16 @@ export function TheLounge({
             setDirectors(directorPitches);
             setState('PITCHING');
 
-            // Set carousel to recommended director if available
-            const recommendedIndex = directorPitches.findIndex((d: any) => d.isRecommended);
+            // P0-3 FIX: Use stable ID lookup instead of array index assumption
+            const recommendedIndex = recommendedId
+              ? directorPitches.findIndex((d: ExtendedDirectorPitchData) => d.id === recommendedId)
+              : -1;
             if (recommendedIndex >= 0) {
-              console.log(`[TheLounge] 🎯 Starting carousel at recommended director (index ${recommendedIndex})`);
+              console.log(`[TheLounge] 🎯 Starting carousel at recommended director "${recommendedId}" (index ${recommendedIndex})`);
               setCurrentDirectorIndex(recommendedIndex);
             } else {
               console.log('[TheLounge] ℹ️ No recommended director found, starting at index 0');
+              setCurrentDirectorIndex(0);
             }
           } catch (transformError) {
             console.error('[TheLounge] ❌ Error transforming director pitches:', transformError);
@@ -170,11 +242,21 @@ export function TheLounge({
           }, 1000);
         }
 
-        // Clear the sessionStorage after use
-        sessionStorage.removeItem('studioTransition');
+        // Clear the sessionStorage after successful use
+        try {
+          sessionStorage.removeItem('studioTransition');
+        } catch (clearError) {
+          console.warn('[TheLounge] ⚠️ Failed to clear sessionStorage:', clearError);
+        }
       } catch (error) {
-        console.error('Failed to parse studio transition data:', error);
+        console.error('[TheLounge] ❌ Failed to parse studio transition data:', error);
         setHasStudioData(false);
+        // P0-2 FIX: Clear corrupted data
+        try {
+          sessionStorage.removeItem('studioTransition');
+        } catch (clearError) {
+          console.warn('[TheLounge] ⚠️ Failed to clear corrupted sessionStorage:', clearError);
+        }
       }
     }
   }, [onAnalyze]);
@@ -240,7 +322,7 @@ export function TheLounge({
     }
   }, [onAnalyze]);
 
-  // Handle Director selection - now transitions to STORYBOARD
+  // P1-2 FIX: Handle Director selection - now always uses SCENE_APPROVAL (STORYBOARD removed)
   const handleSelectDirector = useCallback(async (directorId: string) => {
     setLoadingDirectorId(directorId);
     setSelectedDirectorId(directorId);
@@ -253,9 +335,34 @@ export function TheLounge({
     const mockScenes = generateMockScenes(selectedDirector);
     setScenes(mockScenes);
 
-    setState('STORYBOARD');
     setLoadingDirectorId(null);
-  }, [directors]);
+
+    // Stage 2: Show MicroEnrichmentToast if product info not yet provided
+    if (!progressiveBrandData.productInfo) {
+      setShowMicroEnrichment(true);
+    } else {
+      // P1-2 FIX: Always use SCENE_APPROVAL (Director-led experience)
+      setState('SCENE_APPROVAL');
+    }
+  }, [directors, progressiveBrandData.productInfo]);
+
+  // Handle MicroEnrichment submission (Stage 2)
+  const handleMicroEnrichmentSubmit = useCallback((productInfo: string) => {
+    setProgressiveBrandData(prev => ({ ...prev, productInfo }));
+    setShowMicroEnrichment(false);
+    // P1-2 FIX: Always route to SCENE_APPROVAL
+    setState('SCENE_APPROVAL');
+    console.log('[TheLounge] 📝 Stage 2 enrichment received:', productInfo);
+    console.log('[TheLounge] 📊 Quality tier:', calculateQualityTier({ productInfo }));
+  }, []);
+
+  // Handle MicroEnrichment dismiss
+  const handleMicroEnrichmentDismiss = useCallback(() => {
+    setShowMicroEnrichment(false);
+    // P1-2 FIX: Always route to SCENE_APPROVAL
+    setState('SCENE_APPROVAL');
+    console.log('[TheLounge] ⏭️ User skipped Stage 2 enrichment');
+  }, []);
 
   // Handle scene approval
   const handleApproveScene = useCallback((sceneId: string) => {
@@ -271,13 +378,41 @@ export function TheLounge({
     ));
   }, []);
 
+  // Stage 3: Handle brand data update from Director-led enrichment
+  const handleBrandDataUpdate = useCallback((data: Partial<ProgressiveBrandData>) => {
+    setProgressiveBrandData(prev => ({ ...prev, ...data }));
+    console.log('[TheLounge] 📝 Stage 3 enrichment updated:', data);
+    console.log('[TheLounge] 📊 Quality tier:', calculateQualityTier(data));
+  }, []);
+
+  // Stage 3: Handle completion of Director-led scene approval
+  const handleDirectorApprovalComplete = useCallback(() => {
+    console.log('[TheLounge] ✅ Stage 3 Director approval complete');
+    setState('SELECTED');
+    if (onDirectorSelected && imageUrl && selectedDirectorId) {
+      onDirectorSelected(selectedDirectorId, imageUrl);
+    }
+  }, [imageUrl, selectedDirectorId, onDirectorSelected]);
+
   // Handle approve all scenes
   const handleApproveAll = useCallback(() => {
     setScenes(prev => prev.map(scene => ({ ...scene, status: 'GREEN' as const })));
   }, []);
 
-  // Proceed to production
+  /**
+   * P1-4 FIX: Consolidated production callback
+   *
+   * Previously had dual callbacks:
+   * - handleProceedToProduction (STORYBOARD flow - now deprecated)
+   * - handleDirectorApprovalComplete (SCENE_APPROVAL flow - primary)
+   *
+   * Now uses single callback for all production transitions.
+   * STORYBOARD state is deprecated - always use SCENE_APPROVAL.
+   *
+   * @deprecated Use handleDirectorApprovalComplete instead
+   */
   const handleProceedToProduction = useCallback(() => {
+    console.warn('[TheLounge] handleProceedToProduction is deprecated, use handleDirectorApprovalComplete');
     setState('SELECTED');
     if (onDirectorSelected && imageUrl && selectedDirectorId) {
       onDirectorSelected(selectedDirectorId, imageUrl);
@@ -285,7 +420,8 @@ export function TheLounge({
   }, [imageUrl, selectedDirectorId, onDirectorSelected]);
 
   // Reset to initial state
-  const handleReset = useCallback(() => {
+  // P2-4 FIX: Add option to preserve brand context through reset
+  const handleReset = useCallback((preserveContext = false) => {
     setState('IDLE');
     setImageUrl(null);
     setImagePreview(null);
@@ -293,7 +429,23 @@ export function TheLounge({
     setSelectedDirectorId(null);
     setError(null);
     setHasStudioData(false);
+    // P2-2 FIX: Clear scenes and progress when resetting
+    setScenes([]);
+    setCurrentDirectorIndex(0);
+    setShowMicroEnrichment(false);
+    // P2-4 FIX: Optionally preserve brand context for error recovery
+    if (!preserveContext) {
+      setBrandContext(null);
+      setCulturalContext(null);
+      setProgressiveBrandData(createDefaultProgressiveData());
+    }
   }, []);
+
+  // P2-4 FIX: Separate handler for error retry that preserves context
+  const handleErrorRetry = useCallback(() => {
+    handleReset(true); // Preserve context when retrying
+    console.log('[TheLounge] 🔄 Retrying with preserved brand context');
+  }, [handleReset]);
 
   // Carousel navigation
   const handleNextDirector = useCallback(() => {
@@ -308,6 +460,21 @@ export function TheLounge({
 
   return (
     <div className="lounge-container">
+      {/* Navigation Bar */}
+      <nav className="lounge-nav">
+        <Link href="/" className="nav-back-btn">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="nav-icon">
+            <path d="M19 12H5M12 19l-7-7 7-7" />
+          </svg>
+          <span>Home</span>
+        </Link>
+        <div className="nav-breadcrumb">
+          <span className="breadcrumb-item">Longevity Valley</span>
+          <span className="breadcrumb-separator">/</span>
+          <span className="breadcrumb-current">Director's Lounge</span>
+        </div>
+      </nav>
+
       {/* Header */}
       <header className="lounge-header">
         <h1 className="lounge-title">
@@ -350,12 +517,29 @@ export function TheLounge({
                     isLoading={false}
                     compact={false}
                   />
+                  {/* Continue Button - Collapses form and scrolls to upload */}
+                  <div className="form-actions">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowContextForm(false);
+                        // Scroll to upload zone
+                        document.getElementById('upload-zone')?.scrollIntoView({ behavior: 'smooth' });
+                      }}
+                      className="continue-btn"
+                    >
+                      {hasRequiredContext ? 'Continue to Upload' : 'Skip & Upload Asset'}
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="continue-icon">
+                        <path d="M5 12h14M12 5l7 7-7 7" />
+                      </svg>
+                    </button>
+                  </div>
                 </div>
               )}
             </div>
 
             {/* Upload Zone */}
-            <div className="upload-zone">
+            <div id="upload-zone" className="upload-zone">
               <input
                 type="file"
                 id="brand-asset"
@@ -403,9 +587,22 @@ export function TheLounge({
             {imagePreview && (
               <div className="preview-section">
                 <img src={imagePreview} alt="Uploaded asset" className="preview-image" />
-                <button onClick={handleReset} className="reset-button">
-                  ↻ Upload Different Asset
-                </button>
+                <div className="preview-actions">
+                  <button onClick={() => handleReset()} className="reset-button" type="button">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="btn-icon">
+                      <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
+                      <path d="M3 3v5h5" />
+                    </svg>
+                    Start Over
+                  </button>
+                  <Link href="/" className="home-link-btn">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="btn-icon">
+                      <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+                      <polyline points="9 22 9 12 15 12 15 22" />
+                    </svg>
+                    Home
+                  </Link>
+                </div>
               </div>
             )}
 
@@ -436,7 +633,7 @@ export function TheLounge({
 
                 <div className="director-pitch">
                   <h4>The Pitch:</h4>
-                  <p>{currentDirector.pitch}</p>
+                  <p>{currentDirector.commentary.vision}</p>
                 </div>
 
                 <div className="director-stats">
@@ -532,6 +729,78 @@ export function TheLounge({
           </div>
         )}
 
+        {/* SCENE_APPROVAL State - Stage 3 Director-Led Scene Approval */}
+        {state === 'SCENE_APPROVAL' && selectedDirectorId && (() => {
+          const selectedDirector = directors.find(d => d.id === selectedDirectorId);
+          if (!selectedDirector) return null;
+
+          // Create a DirectorProfile-compatible object for the approval component
+          const directorProfile: DirectorProfile = {
+            id: selectedDirector.id,
+            name: selectedDirector.name,
+            avatar: selectedDirector.avatar,
+            archetype: selectedDirector.archetype,
+            quote: selectedDirector.quote,
+            biases: {
+              physicsMultiplier: selectedDirector.stats.physics / 6.0,
+              vibeMultiplier: selectedDirector.stats.vibe / 6.0,
+              logicMultiplier: selectedDirector.stats.logic / 6.0,
+            },
+            riskProfile: {
+              label: selectedDirector.riskLevel as 'Safe' | 'Balanced' | 'Experimental',
+              hallucinationThreshold: selectedDirector.riskLevel === 'Experimental' ? 0.8 : selectedDirector.riskLevel === 'Safe' ? 0.2 : 0.5,
+            },
+            voice: {
+              tone: selectedDirector.archetype,
+              vocabulary: [],
+              forbidden: [],
+            },
+            systemPromptModifier: selectedDirector.commentary.vision || '',
+            preferredEngine: selectedDirector.engine as 'kling' | 'luma',
+          };
+
+          // Transform SceneData to VideoScene format
+          const videoScenes: VideoScene[] = scenes.map(scene => ({
+            id: scene.id,
+            sequence_index: scene.sequenceIndex,
+            action_token: scene.description,
+            preview_url: scene.previewUrl,
+            status: scene.status,
+            attempt_count: 0, // Initial attempt count
+            user_feedback: scene.userFeedback,
+          }));
+
+          return (
+            <div className="scene-approval-state">
+              {/* Back button */}
+              <button
+                className="back-to-directors-btn"
+                onClick={() => setState('PITCHING')}
+              >
+                ← Change Director
+              </button>
+
+              {/* Image preview */}
+              {imagePreview && (
+                <div className="preview-section compact">
+                  <img src={imagePreview} alt="Uploaded asset" className="preview-image-small" />
+                </div>
+              )}
+
+              <DirectorSceneApproval
+                director={directorProfile}
+                scenes={videoScenes}
+                brandData={progressiveBrandData}
+                onBrandDataUpdate={handleBrandDataUpdate}
+                onSceneApprove={handleApproveScene}
+                onSceneRefine={handleRefineScene}
+                onComplete={handleDirectorApprovalComplete}
+                sourceImageUrl={imageUrl || undefined}
+              />
+            </div>
+          );
+        })()}
+
         {/* SELECTED State - Confirmation */}
         {state === 'SELECTED' && selectedDirectorId && (
           <div className="selected-state">
@@ -545,7 +814,7 @@ export function TheLounge({
             <p className="selected-message">
               Your concept has been greenlit. Proceeding to video production...
             </p>
-            <button onClick={handleReset} className="new-project-button">
+            <button onClick={() => handleReset()} className="new-project-button">
               Start New Project
             </button>
           </div>
@@ -556,12 +825,53 @@ export function TheLounge({
           <div className="error-state">
             <span className="error-icon">⚠️</span>
             <p className="error-message">{error}</p>
-            <button onClick={handleReset} className="retry-button">
+            {/* P2-4 FIX: Use handleErrorRetry to preserve brand context */}
+            <button onClick={handleErrorRetry} className="retry-button">
               Try Again
             </button>
           </div>
         )}
       </main>
+
+      {/* Stage 2: MicroEnrichment Toast (appears after Director selection) */}
+      {selectedDirectorId && (() => {
+        const selectedDirector = directors.find(d => d.id === selectedDirectorId);
+        if (!selectedDirector) return null;
+
+        // Create a DirectorProfile-compatible object for the toast
+        const directorProfile: DirectorProfile = {
+          id: selectedDirector.id,
+          name: selectedDirector.name,
+          avatar: selectedDirector.avatar,
+          archetype: selectedDirector.archetype,
+          quote: selectedDirector.quote,
+          biases: {
+            physicsMultiplier: selectedDirector.stats.physics / 6.0, // Normalize to ~1.5x max
+            vibeMultiplier: selectedDirector.stats.vibe / 6.0,
+            logicMultiplier: selectedDirector.stats.logic / 6.0,
+          },
+          riskProfile: {
+            label: selectedDirector.riskLevel as 'Safe' | 'Balanced' | 'Experimental',
+            hallucinationThreshold: selectedDirector.riskLevel === 'Experimental' ? 0.8 : selectedDirector.riskLevel === 'Safe' ? 0.2 : 0.5,
+          },
+          voice: {
+            tone: selectedDirector.archetype,
+            vocabulary: [],
+            forbidden: [],
+          },
+          systemPromptModifier: selectedDirector.commentary.vision || '',
+          preferredEngine: selectedDirector.engine as 'kling' | 'luma',
+        };
+
+        return (
+          <MicroEnrichmentToast
+            isVisible={showMicroEnrichment}
+            director={directorProfile}
+            onSubmit={handleMicroEnrichmentSubmit}
+            onDismiss={handleMicroEnrichmentDismiss}
+          />
+        );
+      })()}
 
       <style>{loungeStyles}</style>
     </div>
@@ -697,9 +1007,64 @@ const loungeStyles = `
     font-family: system-ui, -apple-system, sans-serif;
   }
 
+  /* Navigation Bar */
+  .lounge-nav {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 24px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  }
+
+  .nav-back-btn {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 16px;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 8px;
+    color: rgba(255, 255, 255, 0.8);
+    text-decoration: none;
+    font-size: 0.875rem;
+    font-weight: 500;
+    transition: all 0.2s;
+  }
+
+  .nav-back-btn:hover {
+    background: rgba(255, 255, 255, 0.1);
+    color: white;
+    border-color: rgba(255, 255, 255, 0.2);
+  }
+
+  .nav-icon {
+    width: 16px;
+    height: 16px;
+  }
+
+  .nav-breadcrumb {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.875rem;
+  }
+
+  .breadcrumb-item {
+    color: rgba(255, 255, 255, 0.5);
+  }
+
+  .breadcrumb-separator {
+    color: rgba(255, 255, 255, 0.3);
+  }
+
+  .breadcrumb-current {
+    color: rgba(255, 255, 255, 0.9);
+    font-weight: 500;
+  }
+
   .lounge-header {
     text-align: center;
-    padding: 48px 24px 32px;
+    padding: 32px 24px 24px;
   }
 
   /* IDLE State Container */
@@ -810,6 +1175,45 @@ const loungeStyles = `
     color: rgba(255, 255, 255, 0.5);
   }
 
+  /* Form Actions - Continue Button */
+  .form-actions {
+    margin-top: 20px;
+    padding-top: 20px;
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+    display: flex;
+    justify-content: center;
+  }
+
+  .continue-btn {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 14px 28px;
+    background: linear-gradient(135deg, #8b5cf6 0%, #6366f1 100%);
+    border: none;
+    border-radius: 12px;
+    color: white;
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s;
+    box-shadow: 0 4px 20px rgba(139, 92, 246, 0.3);
+  }
+
+  .continue-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 30px rgba(139, 92, 246, 0.4);
+  }
+
+  .continue-btn:active {
+    transform: translateY(0);
+  }
+
+  .continue-icon {
+    width: 18px;
+    height: 18px;
+  }
+
   .context-ready-badge {
     display: block;
     margin-top: 12px;
@@ -907,21 +1311,41 @@ const loungeStyles = `
     box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
   }
 
-  .reset-button {
+  /* Preview Actions */
+  .preview-actions {
+    display: flex;
+    gap: 12px;
     margin-top: 16px;
-    padding: 8px 16px;
-    background: transparent;
-    border: 1px solid rgba(255, 255, 255, 0.2);
-    color: rgba(255, 255, 255, 0.6);
-    border-radius: 6px;
+    justify-content: center;
+  }
+
+  .reset-button,
+  .home-link-btn {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 18px;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    color: rgba(255, 255, 255, 0.8);
+    border-radius: 8px;
     font-size: 0.875rem;
+    font-weight: 500;
     cursor: pointer;
+    text-decoration: none;
     transition: all 0.2s;
   }
 
-  .reset-button:hover {
-    border-color: rgba(255, 255, 255, 0.4);
+  .reset-button:hover,
+  .home-link-btn:hover {
+    background: rgba(255, 255, 255, 0.1);
+    border-color: rgba(255, 255, 255, 0.25);
     color: white;
+  }
+
+  .btn-icon {
+    width: 16px;
+    height: 16px;
   }
 
   /* Status Card */
@@ -1370,6 +1794,45 @@ const loungeStyles = `
     padding: 6px 12px;
     background: rgba(255, 255, 255, 0.1);
     border-radius: 999px;
+  }
+
+  /* Scene Approval State (Stage 3) */
+  .scene-approval-state {
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 0 24px;
+  }
+
+  .back-to-directors-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 20px;
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 8px;
+    color: rgba(255, 255, 255, 0.7);
+    font-size: 0.875rem;
+    cursor: pointer;
+    transition: all 0.2s;
+    margin-bottom: 24px;
+  }
+
+  .back-to-directors-btn:hover {
+    background: rgba(255, 255, 255, 0.15);
+    color: white;
+  }
+
+  .preview-section.compact {
+    margin-bottom: 24px;
+  }
+
+  .preview-image-small {
+    width: 100%;
+    max-width: 300px;
+    height: auto;
+    border-radius: 12px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
   }
 `;
 

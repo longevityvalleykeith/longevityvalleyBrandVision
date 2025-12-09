@@ -576,6 +576,203 @@ export function deriveTone(
 }
 
 // =============================================================================
+// BRAND SEMANTIC LOCK (P0 Critical: Context Retention in Scene Generation)
+// =============================================================================
+
+/**
+ * BrandSemanticLock
+ *
+ * Captures and LOCKS the brand + cultural semantics at THE LOUNGE
+ * before DeepSeek scene generation. This prevents context drift
+ * during scene refinement (Yellow button).
+ *
+ * Immutable after creation - refinements must stay WITHIN this context.
+ *
+ * @see docs/UX_EVALUATION_081225.md - P0: Context drift in scene generation
+ */
+export interface BrandSemanticLock {
+  /** Unique lock ID */
+  id: string;
+
+  /** When this lock was created */
+  lockedAt: Date;
+
+  // ─────────────────────────────────────────────────────────────
+  // BRAND ESSENCE (User-provided context)
+  // ─────────────────────────────────────────────────────────────
+
+  /** Product and brand information */
+  brandEssence: {
+    productInfo: string;
+    sellingPoints: string;
+    targetAudience: string;
+    painPoints: string;
+    scenarios: string;
+    ctaOffer: string;
+  };
+
+  // ─────────────────────────────────────────────────────────────
+  // CULTURAL VOICE (Region + Language specific)
+  // ─────────────────────────────────────────────────────────────
+
+  /** Cultural context frozen at time of lock */
+  culturalVoice: {
+    language: SupportedLanguage;
+    region: CulturalRegion;
+    formality: FormalityLevel;
+    warmth: number;
+    /** System prompt modifier for scene generation */
+    voiceModifier: string;
+  };
+
+  // ─────────────────────────────────────────────────────────────
+  // DIRECTOR IDENTITY (Selected Director's perspective)
+  // ─────────────────────────────────────────────────────────────
+
+  /** Director who was selected */
+  directorId: string;
+
+  /** Director's interpretation of the brand */
+  directorLens: {
+    /** The 3-Beat Pulse from Director selection */
+    vision: string;
+    safety: string;
+    magic: string;
+    /** Recommended production engine */
+    engine: 'kling' | 'luma';
+    /** Risk level */
+    riskLevel: 'Safe' | 'Balanced' | 'Experimental';
+  };
+
+  // ─────────────────────────────────────────────────────────────
+  // VISUAL IDENTITY (From Gemini analysis)
+  // ─────────────────────────────────────────────────────────────
+
+  /** Core visual attributes that must persist in all scenes */
+  visualIdentity: {
+    primaryColors: string[];
+    mood: string;
+    styleKeywords: string[];
+    composition: string;
+    /** Invariant token for scene consistency */
+    invariantToken: string;
+  };
+}
+
+/**
+ * Zod schema for BrandSemanticLock
+ */
+export const BrandSemanticLockSchema = z.object({
+  id: z.string().uuid(),
+  lockedAt: z.date(),
+  brandEssence: z.object({
+    productInfo: z.string(),
+    sellingPoints: z.string(),
+    targetAudience: z.string(),
+    painPoints: z.string(),
+    scenarios: z.string(),
+    ctaOffer: z.string(),
+  }),
+  culturalVoice: z.object({
+    language: SupportedLanguageSchema,
+    region: CulturalRegionSchema,
+    formality: FormalityLevelSchema,
+    warmth: z.number().min(0).max(1),
+    voiceModifier: z.string(),
+  }),
+  directorId: z.string(),
+  directorLens: z.object({
+    vision: z.string(),
+    safety: z.string(),
+    magic: z.string(),
+    engine: z.enum(['kling', 'luma']),
+    riskLevel: z.enum(['Safe', 'Balanced', 'Experimental']),
+  }),
+  visualIdentity: z.object({
+    primaryColors: z.array(z.string()),
+    mood: z.string(),
+    styleKeywords: z.array(z.string()),
+    composition: z.string(),
+    invariantToken: z.string(),
+  }),
+});
+
+/**
+ * Create a BrandSemanticLock from available context
+ */
+export function createBrandSemanticLock(params: {
+  brandContext?: CulturalBrandContext;
+  culturalContext: CulturalContextInput;
+  directorId: string;
+  directorPitch: {
+    vision: string;
+    safety: string;
+    magic: string;
+    engine: 'kling' | 'luma';
+    riskLevel: 'Safe' | 'Balanced' | 'Experimental';
+  };
+  visualAnalysis: {
+    primaryColors: string[];
+    mood: string;
+    styleKeywords: string[];
+    composition: string;
+  };
+}): BrandSemanticLock {
+  const { brandContext, culturalContext, directorId, directorPitch, visualAnalysis } = params;
+
+  // Build cultural voice modifier based on region
+  const voiceModifiers: Record<CulturalRegion, string> = {
+    western: 'Use direct, confident language. Focus on individual benefits and innovation.',
+    china: '使用含蓄且专业的语言。强调产品的传统价值与现代科技的融合。Use metaphors that resonate with Chinese culture.',
+    taiwan: '使用溫和且專業的語言。強調品質與信賴。Emphasize quality and trustworthiness.',
+    malaysia: 'Gunakan bahasa yang mesra dan profesional. Tekankan nilai keluarga dan komuniti. Balance formality with warmth.',
+  };
+
+  // Create invariant token from visual identity
+  const invariantToken = [
+    visualAnalysis.mood,
+    visualAnalysis.primaryColors.length > 0 ? `${visualAnalysis.primaryColors.join(', ')} palette` : '',
+    visualAnalysis.styleKeywords.slice(0, 3).join(', '),
+    visualAnalysis.composition,
+  ].filter(Boolean).join(', ');
+
+  return {
+    id: crypto.randomUUID(),
+    lockedAt: new Date(),
+    brandEssence: {
+      productInfo: brandContext?.productInfo || '',
+      sellingPoints: brandContext?.sellingPoints || '',
+      targetAudience: brandContext?.targetAudience || '',
+      painPoints: brandContext?.painPoints || '',
+      scenarios: brandContext?.scenarios || '',
+      ctaOffer: brandContext?.ctaOffer || '',
+    },
+    culturalVoice: {
+      language: culturalContext.language,
+      region: culturalContext.region,
+      formality: culturalContext.formality,
+      warmth: culturalContext.warmth,
+      voiceModifier: voiceModifiers[culturalContext.region],
+    },
+    directorId,
+    directorLens: {
+      vision: directorPitch.vision,
+      safety: directorPitch.safety,
+      magic: directorPitch.magic,
+      engine: directorPitch.engine,
+      riskLevel: directorPitch.riskLevel,
+    },
+    visualIdentity: {
+      primaryColors: visualAnalysis.primaryColors,
+      mood: visualAnalysis.mood,
+      styleKeywords: visualAnalysis.styleKeywords,
+      composition: visualAnalysis.composition,
+      invariantToken,
+    },
+  };
+}
+
+// =============================================================================
 // TYPE EXPORTS
 // =============================================================================
 
@@ -586,3 +783,4 @@ export function deriveTone(
 // - CulturalContextInput, CulturalVoice, DerivedTone
 // - CulturalDirectorVoice, InputQualityAssessment, ToneLearningEvent
 // - CulturalBrandContext, CulturalAnalysisRequest
+// - BrandSemanticLock (P0 Critical)

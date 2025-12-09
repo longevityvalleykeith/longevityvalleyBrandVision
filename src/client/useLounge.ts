@@ -16,6 +16,14 @@ import type { DirectorPitchData } from './components/lounge/DirectorCard';
 // TYPES
 // =============================================================================
 
+/** Valid Director IDs */
+type DirectorId = 'newtonian' | 'visionary' | 'minimalist' | 'provocateur';
+
+/** Type guard to validate Director IDs */
+function isValidDirectorId(id: string): id is DirectorId {
+  return ['newtonian', 'visionary', 'minimalist', 'provocateur'].includes(id);
+}
+
 interface LoungeAnalysisResult {
   rawScores: {
     physics: number;
@@ -93,10 +101,16 @@ export function useLounge(): UseLoungeReturn {
     jobId: string,
     scores: { physics: number; vibe: number; logic: number }
   ): Promise<void> => {
+    // Validate directorId before sending to API
+    if (!isValidDirectorId(directorId)) {
+      console.error('[useLounge] Invalid director ID:', directorId);
+      return;
+    }
+
     try {
       await selectDirectorMutation.mutateAsync({
         jobId,
-        directorId: directorId as 'newtonian' | 'visionary' | 'minimalist' | 'provocateur',
+        directorId, // Type is now narrowed by the guard
         rawScores: scores,
       });
       console.log('[useLounge] Director selection recorded:', directorId);

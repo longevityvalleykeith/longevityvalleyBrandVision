@@ -10,6 +10,7 @@
 
 import { z } from 'zod';
 import { VALIDATION } from './index';
+import { CulturalContextInputSchema } from './cultural';
 
 // =============================================================================
 // PRIMITIVE VALIDATORS
@@ -196,12 +197,48 @@ export type DirectorStateInput = z.infer<typeof DirectorStateSchema>;
 // =============================================================================
 
 /**
+ * Brand Context schema for semantic lock
+ */
+export const BrandContextSchema = z.object({
+  productInfo: z.string().optional(),
+  sellingPoints: z.string().optional(),
+  targetAudience: z.string().optional(),
+  painPoints: z.string().optional(),
+  scenarios: z.string().optional(),
+  ctaOffer: z.string().optional(),
+});
+
+/**
+ * Director Pitch schema for semantic lock
+ */
+export const DirectorPitchInputSchema = z.object({
+  vision: z.string(),
+  safety: z.string(),
+  magic: z.string(),
+  engine: z.enum(['kling', 'luma']),
+  riskLevel: z.enum(['Safe', 'Balanced', 'Experimental']),
+});
+
+/**
  * Init Director endpoint input
+ *
+ * P0 Critical: Now includes brandContext, culturalContext, and directorPitch
+ * for creating the BrandSemanticLock
+ *
+ * P2: Added previewEngine for A/B testing between Flux and Nano Banana Pro
  */
 export const InitDirectorInputSchema = z.object({
   jobId: uuid,
   forceRemaster: z.boolean().default(false),
   preferredStyleId: sanitizedString.optional(),
+  // P0 Critical: Context for BrandSemanticLock
+  directorId: z.enum(['newtonian', 'visionary', 'minimalist', 'provocateur']).optional(),
+  directorPitch: DirectorPitchInputSchema.optional(),
+  brandContext: BrandContextSchema.optional(),
+  culturalContext: CulturalContextInputSchema.optional(),
+  // P2: A/B Preview Engine Selection
+  previewEngine: z.enum(['flux', 'nano-banana-pro']).optional(),
+  previewResolution: z.enum(['1k', '2k', '4k']).optional(),
 }).strict();
 
 export type InitDirectorInputValidated = z.infer<typeof InitDirectorInputSchema>;

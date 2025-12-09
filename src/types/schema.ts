@@ -29,6 +29,7 @@ import type {
   VideoPromptStatus,
   UserCreativeProfile,
   LearningEvent,
+  BrandSemanticLock,
 } from './index';
 
 // =============================================================================
@@ -141,6 +142,9 @@ export const visionJobVideoPrompts = pgTable('vision_job_video_prompts', {
 
   // Conversation Context (for YELLOW flow)
   conversationHistory: jsonb('conversation_history').default('[]'),
+
+  // P0 Critical: Brand Semantic Lock - preserves brand/cultural context for scene generation
+  brandSemanticLock: jsonb('brand_semantic_lock').$type<BrandSemanticLock>(),
 
   // Remastered image URL (if quality was below threshold)
   remasteredImageUrl: text('remastered_image_url'),

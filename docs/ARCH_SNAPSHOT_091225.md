@@ -1,6 +1,6 @@
 # Architecture Snapshot
 
-**Generated**: 2025-12-08T11:50:03.012Z
+**Generated**: 2025-12-08T23:19:40.953Z
 **Project**: Longevity Valley Brand Content Factory
 **Phase**: 3B + 3C (Brand Analysis + Video Director Mode)
 
@@ -63,7 +63,6 @@
     │   ├── DIRECTOR_PERSONA_SCHEMA.md
     │   ├── INPUT_BOTTLENECK_ANALYSIS.md
     │   ├── INPUT_GATEKEEPING_SPEC.md
-    │   ├── Longevity_Valley_Architecture_Specification_Comparison_v1.0_vs._v2.0.pdf
     │   ├── RASHOMON_CULTURAL_DNA_SPEC.md
     │   ├── ROOT_CAUSE_ANALYSIS_AUDIT.md
     │   ├── SCHEMA_INTEGRITY_AUDIT_081225.md
@@ -129,16 +128,27 @@
     │   │   │   ├── BrandContextForm.tsx
     │   │   │   ├── BrandScanner.tsx
     │   │   │   ├── CircularProgress.tsx
+    │   │   │   ├── DirectorSceneApproval.tsx
     │   │   │   ├── FileDropzone.tsx
+    │   │   │   ├── GuidedInputChips.tsx
+    │   │   │   ├── InputQualityIndicator.tsx
+    │   │   │   ├── LanguageSwitcher.tsx
+    │   │   │   ├── MicroEnrichmentToast.tsx
     │   │   │   ├── ScenePreviewCard.tsx
     │   │   │   └── ScenePreviewGrid.tsx
+    │   │   ├── utils
+    │   │   │   └── inputValidation.ts
     │   │   ├── DirectorMode.tsx
     │   │   ├── ErrorBoundary.tsx
     │   │   ├── useAuth.tsx
     │   │   ├── useDirector.ts
     │   │   └── useLounge.ts
     │   ├── config
-    │   │   └── directors.ts
+    │   │   ├── cultural
+    │   │   │   ├── guidedChips.ts
+    │   │   │   └── placeholders.ts
+    │   │   ├── directors.ts
+    │   │   └── progressiveBrandContent.ts
     │   ├── lib
     │   │   └── trpc.ts
     │   ├── server
@@ -194,6 +204,8 @@
     ├── .gitignore
     ├── 2025-12-08-CulturalDNAScheme.txt
     ├── 2025-12-08-Rashamon Awakeninge.txt
+    ├── 2025-12-09-CulturalSemanticLock.txt
+    ├── 2025-12-09-full-session-CultureBrandContext.txt
     ├── CHANGELOG.md
     ├── drizzle.config.ts
     ├── FINAL-DEV_SPEC_v2.md
@@ -388,6 +400,7 @@ import type {
   VideoPromptStatus,
   UserCreativeProfile,
   LearningEvent,
+  BrandSemanticLock,
 } from './index';
 
 // =============================================================================
@@ -500,6 +513,9 @@ export const visionJobVideoPrompts = pgTable('vision_job_video_prompts', {
 
   // Conversation Context (for YELLOW flow)
   conversationHistory: jsonb('conversation_history').default('[]'),
+
+  // P0 Critical: Brand Semantic Lock - preserves brand/cultural context for scene generation
+  brandSemanticLock: jsonb('brand_semantic_lock').$type<BrandSemanticLock>(),
 
   // Remastered image URL (if quality was below threshold)
   remasteredImageUrl: text('remastered_image_url'),

@@ -34,10 +34,19 @@ import type {
   VideoScene,
   GeminiAnalysisOutput,
   DirectorPitch,
+  BrandSemanticLock,
+  CulturalContextInput,
 } from '../types';
+import { createBrandSemanticLock, DEFAULT_CULTURAL_CONTEXT } from '../types/cultural';
 import { createDirectorState, VALIDATION } from '../types';
 import { generateInitialStoryboard, refineScenePrompt } from './services/deepseekDirector';
-import { generateFluxPreviews, runFluxRemaster, regenerateScene } from './services/fluxPreviewer';
+import {
+  generateFluxPreviews,
+  runFluxRemaster,
+  regenerateScene,
+  type PreviewEngine,
+  type PreviewEngineConfig,
+} from './services/fluxPreviewer';
 import { queueBatchVideoGeneration } from './services/klingVideo';
 import { STYLE_PRESETS, getStylePreset } from './utils/stylePresets';
 import { analyzeRawPixels, generateDirectorPitch } from './services/vision';
@@ -310,13 +319,55 @@ export const directorRouter = router({
           ? STYLE_PRESETS.filter(s => s.id === input.preferredStyleId || !s.is_premium)
           : STYLE_PRESETS.filter(s => !s.is_premium || ctx.user?.plan !== 'free');
 
+        // P0 Critical: Create BrandSemanticLock if context is provided
+        let semanticLock: BrandSemanticLock | null = null;
+        if (input.directorId && input.directorPitch) {
+          const culturalContext = input.culturalContext || DEFAULT_CULTURAL_CONTEXT;
+
+          semanticLock = createBrandSemanticLock({
+            brandContext: input.brandContext,
+            culturalContext,
+            directorId: input.directorId,
+            directorPitch: input.directorPitch,
+            visualAnalysis: {
+              primaryColors: analysis.brand_attributes.primary_colors || [],
+              mood: analysis.brand_attributes.mood || '',
+              styleKeywords: analysis.visual_elements.style_keywords || [],
+              composition: analysis.visual_elements.composition || '',
+            },
+          });
+
+          console.log('[Director] 🔒 BrandSemanticLock created:', {
+            lockId: semanticLock.id,
+            directorId: semanticLock.directorId,
+            region: semanticLock.culturalVoice.region,
+            hasProductInfo: !!semanticLock.brandEssence.productInfo,
+          });
+        }
+
         const { scenes, selected_style_id, invariant_token } = await generateInitialStoryboard(
           analysis,
-          availableStyles
+          availableStyles,
+          semanticLock
         );
 
-        // PREVIEW: Generate preview images
-        const scenesWithPreviews = await generateFluxPreviews(scenes);
+        // PREVIEW: Generate preview images with A/B engine selection
+        // P2: Pass semantic lock + source image for transition consistency
+        const previewConfig: Partial<PreviewEngineConfig> = {
+          engine: (input.previewEngine as PreviewEngine) || 'flux',
+          resolution: input.previewResolution || '1k',
+          semanticLock,
+          referenceImages: workingImageUrl ? [workingImageUrl] : undefined,
+        };
+
+        console.log('[Director] 🎬 Generating previews with:', {
+          engine: previewConfig.engine,
+          resolution: previewConfig.resolution,
+          hasSemanticLock: !!semanticLock,
+          hasSourceImage: !!workingImageUrl,
+        });
+
+        const scenesWithPreviews = await generateFluxPreviews(scenes, previewConfig);
 
         // Build initial state
         const initialState: DirectorState = {
@@ -335,14 +386,16 @@ export const directorRouter = router({
         };
 
         // Persist to database using the correct schema columns
+        // P0 Critical: Store brandSemanticLock for scene refinement
         await db
           .insert(visionJobVideoPrompts)
           .values({
             jobId: input.jobId,
-            productionEngine: 'kling', // Default engine, will be updated on selection
+            productionEngine: semanticLock?.directorLens.engine || 'kling',
             status: 'reviewing',
             scenesData: scenesWithPreviews,
             remasteredImageUrl: isRemastered ? workingImageUrl : null,
+            brandSemanticLock: semanticLock || undefined,
           })
           .onConflictDoUpdate({
             target: visionJobVideoPrompts.jobId,
@@ -350,6 +403,7 @@ export const directorRouter = router({
               status: 'reviewing',
               scenesData: scenesWithPreviews,
               remasteredImageUrl: isRemastered ? workingImageUrl : null,
+              brandSemanticLock: semanticLock || undefined,
             },
           });
 
@@ -396,6 +450,16 @@ export const directorRouter = router({
         const currentScenes = promptRecord.scenesData as DirectorState['scenes'];
         const currentStatus = promptRecord.status;
 
+        // P0 Critical: Retrieve BrandSemanticLock for constrained refinement
+        const semanticLock = promptRecord.brandSemanticLock as BrandSemanticLock | null;
+        if (semanticLock) {
+          console.log('[Director] 🔒 Using BrandSemanticLock for refinement:', {
+            lockId: semanticLock.id,
+            directorId: semanticLock.directorId,
+            region: semanticLock.culturalVoice.region,
+          });
+        }
+
         // Validate state allows refinement (status should be 'reviewing')
         if (currentStatus !== 'reviewing') {
           throw new TRPCError({
@@ -410,7 +474,7 @@ export const directorRouter = router({
         const updates = await Promise.all(
           input.refinements.map(async (refine) => {
             const scene = scenes.find((s) => s.id === refine.sceneId);
-            
+
             if (!scene) {
               console.warn(`Scene not found: ${refine.sceneId}`);
               return null;
@@ -424,11 +488,12 @@ export const directorRouter = router({
               });
             }
 
-            // Generate new action token
+            // Generate new action token - P0 Critical: Pass semantic lock for context retention
             const newAction = await refineScenePrompt(
               scene,
               refine.feedback || null,
-              refine.status === 'RED'
+              refine.status === 'RED',
+              semanticLock
             );
 
             // Get style for the scene

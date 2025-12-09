@@ -17,6 +17,7 @@ import type {
   RawPixelAnalysis,
   DirectorPitch,
   SceneBoard,
+  SceneBoardFrame,
 } from '@/types';
 import { STYLE_PRESETS } from '../utils/stylePresets';
 import {
@@ -271,20 +272,26 @@ export async function analyzeRawPixels(imageUrl: string, brandContext?: string):
     // Build enhanced prompt with brand context if provided
     let analysisPrompt = RAW_ANALYSIS_PROMPT;
     if (brandContext) {
-      analysisPrompt = `${RAW_ANALYSIS_PROMPT}
+      // P0 FIX: Sanitize brand context before prompt injection
+      const sanitizedContext = sanitizePromptInput(brandContext);
+      if (sanitizedContext) {
+        analysisPrompt = `${RAW_ANALYSIS_PROMPT}
 
 ## BRAND CONTEXT (User-Provided)
 The user has provided the following context about this brand/product. Use this to enhance your analysis:
 
-${brandContext}
+${sanitizedContext}
 
 Incorporate this context when assessing mood, industry, and message clarity (logic score). The visual analysis should be enriched by understanding what the product is and who it's for.`;
+      }
     }
 
-    // Generate objective analysis
-    const result = await getModel().generateContent([analysisPrompt, ...imageParts]);
-    const response = await result.response;
-    const text = response.text();
+    // Generate objective analysis with retry for transient errors
+    const text = await retryWithBackoff(async () => {
+      const result = await getModel().generateContent([analysisPrompt, ...imageParts]);
+      const response = await result.response;
+      return response.text();
+    });
 
     console.log('[Vision Service] THE EYE: Raw response length:', text.length);
 
@@ -305,7 +312,15 @@ Incorporate this context when assessing mood, industry, and message clarity (log
       return match.replace(/\n/g, '\\n').replace(/\r/g, '\\r');
     });
 
-    const rawData = JSON.parse(jsonString);
+    // P0 FIX: Explicit JSON parse error handling
+    let rawData: Record<string, unknown>;
+    try {
+      rawData = JSON.parse(jsonString);
+    } catch (parseError) {
+      console.error('[Vision Service] THE EYE: JSON parse failed:', parseError);
+      console.error('[Vision Service] THE EYE: Malformed JSON (first 500 chars):', jsonString.substring(0, 500));
+      throw new Error(`Failed to parse Gemini JSON response: ${parseError instanceof Error ? parseError.message : 'Unknown parse error'}`);
+    }
 
     // Validate structure
     if (!rawData.brand_attributes || !rawData.visual_elements) {
@@ -416,10 +431,12 @@ export async function generateDirectorPitch(
     // Build Director-specific prompt with cultural context
     const prompt = buildDirectorPitchPrompt(director, rawAnalysis, culturalContext);
 
-    // Generate pitch (text-only, no image needed)
-    const result = await getModel().generateContent(prompt);
-    const response = await result.response;
-    const text = response.text();
+    // Generate pitch (text-only, no image needed) with retry for transient errors
+    const text = await retryWithBackoff(async () => {
+      const result = await getModel().generateContent(prompt);
+      const response = await result.response;
+      return response.text();
+    });
 
     console.log(`[Vision Service] THE VOICE: ${director.name} response length:`, text.length);
 
@@ -438,7 +455,15 @@ export async function generateDirectorPitch(
       return match.replace(/\n/g, '\\n').replace(/\r/g, '\\r');
     });
 
-    const pitchData = JSON.parse(jsonString);
+    // P0 FIX: Explicit JSON parse error handling for Director pitch
+    let pitchData: Record<string, unknown>;
+    try {
+      pitchData = JSON.parse(jsonString);
+    } catch (parseError) {
+      console.error(`[Vision Service] THE VOICE: ${director.name} JSON parse failed:`, parseError);
+      console.error(`[Vision Service] THE VOICE: Malformed JSON (first 500 chars):`, jsonString.substring(0, 500));
+      throw new Error(`Failed to parse ${director.name}'s JSON response: ${parseError instanceof Error ? parseError.message : 'Unknown parse error'}`);
+    }
 
     // Apply Director biases to scores
     const biasedScores = applyDirectorBiases(
@@ -468,7 +493,10 @@ export async function generateDirectorPitch(
     const directorCommentary = `👀 Vision: ${threeBeat.vision}\n🛡️ Safety: ${threeBeat.safety}\n✨ The Magic: ${threeBeat.magic}`;
 
     // Build scene board with defaults
-    const sceneBoard: SceneBoard = pitchData.scene_board || {
+    const rawSceneBoard = pitchData.scene_board as SceneBoard | undefined;
+
+    // P1 FIX: Validate and normalize scene board timestamps
+    const sceneBoard: SceneBoard = validateSceneBoard(rawSceneBoard) || {
       start: { time: '0s', visual: 'Opening frame', camera: 'Static' },
       middle: { time: '2.5s', visual: 'Motion develops', camera: 'Slow dolly' },
       end: { time: '5s', visual: 'Final reveal', camera: 'Lock off' },
@@ -661,28 +689,39 @@ export async function generateAllDirectorPitches(
 /**
  * Determine which director is most suitable based on raw scores.
  * Goal: 50% conversion rate for recommended director.
+ *
+ * P0 FIX: Reordered conditions to ensure Provocateur is reachable.
+ * Previous bug: Provocateur condition (vibe>8 && physics>6) was unreachable
+ * because vibe>8 would always match "vibe >= logic" first → Visionary.
  */
 function determineRecommendedDirector(rawAnalysis: RawPixelAnalysis): string {
   const { physics_score, vibe_score, logic_score } = rawAnalysis;
 
-  // Physics-dominant → Newtonian
+  // P0 FIX: Check Provocateur FIRST (chaos threshold - high vibe + decent physics)
+  // This must come before Visionary check to be reachable
+  if (vibe_score > 8 && physics_score > 6) {
+    return 'provocateur';
+  }
+
+  // Logic-dominant with high threshold → Minimalist
+  // Check before physics/vibe to catch strong logic preference
+  if (logic_score > 7 && logic_score > physics_score && logic_score > vibe_score) {
+    return 'minimalist';
+  }
+
+  // Physics-dominant → Newtonian (realistic motion, Kling engine)
   if (physics_score >= vibe_score && physics_score >= logic_score) {
     return 'newtonian';
   }
 
-  // Vibe-dominant → Visionary
-  if (vibe_score >= logic_score) {
+  // Vibe-dominant → Visionary (aesthetic, Luma engine)
+  if (vibe_score > logic_score) {
     return 'visionary';
   }
 
-  // Logic-dominant → Minimalist
-  if (logic_score > 7) {
+  // Balanced logic/vibe → Minimalist (clean, structured)
+  if (logic_score >= 6) {
     return 'minimalist';
-  }
-
-  // Wildcard for experimental brands → Provocateur
-  if (vibe_score > 8 && physics_score > 6) {
-    return 'provocateur';
   }
 
   // Default to Visionary (safest bet for most brands)
@@ -692,6 +731,176 @@ function determineRecommendedDirector(rawAnalysis: RawPixelAnalysis): string {
 // =============================================================================
 // UTILITY FUNCTIONS
 // =============================================================================
+
+/**
+ * P0 FIX: Retry with exponential backoff for transient API errors (503, 429, etc.)
+ *
+ * @param fn - Async function to retry
+ * @param maxRetries - Maximum number of retry attempts (default: 3)
+ * @param baseDelay - Initial delay in ms (default: 1000)
+ * @returns Result of the function or throws after all retries exhausted
+ */
+async function retryWithBackoff<T>(
+  fn: () => Promise<T>,
+  maxRetries = 3,
+  baseDelay = 1000
+): Promise<T> {
+  let lastError: Error | null = null;
+
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    try {
+      return await fn();
+    } catch (error) {
+      lastError = error instanceof Error ? error : new Error(String(error));
+
+      // Check if error is retryable (503, 429, network errors)
+      const errorMessage = lastError.message.toLowerCase();
+      const isRetryable =
+        errorMessage.includes('503') ||
+        errorMessage.includes('service unavailable') ||
+        errorMessage.includes('429') ||
+        errorMessage.includes('rate limit') ||
+        errorMessage.includes('too many requests') ||
+        errorMessage.includes('timeout') ||
+        errorMessage.includes('econnreset') ||
+        errorMessage.includes('network');
+
+      if (!isRetryable || attempt === maxRetries) {
+        console.error(`[Vision Service] Retry exhausted after ${attempt + 1} attempts:`, lastError.message);
+        throw lastError;
+      }
+
+      // Exponential backoff with jitter
+      const delay = baseDelay * Math.pow(2, attempt) + Math.random() * 500;
+      console.warn(`[Vision Service] Retryable error (attempt ${attempt + 1}/${maxRetries + 1}): ${lastError.message}`);
+      console.warn(`[Vision Service] Retrying in ${Math.round(delay)}ms...`);
+
+      await new Promise(resolve => setTimeout(resolve, delay));
+    }
+  }
+
+  throw lastError || new Error('Retry failed with unknown error');
+}
+
+/**
+ * P0 FIX: Sanitize user-provided text before injection into LLM prompts.
+ * Prevents prompt injection attacks and ensures clean input.
+ *
+ * Security measures:
+ * - Remove potential prompt delimiters (```, ###, etc.)
+ * - Remove HTML/XML tags
+ * - Remove control characters
+ * - Limit excessive whitespace
+ * - Truncate to reasonable length
+ */
+function sanitizePromptInput(input: string, maxLength = 2000): string {
+  if (!input || typeof input !== 'string') {
+    return '';
+  }
+
+  return input
+    // Remove potential code fence delimiters that could break JSON extraction
+    .replace(/```/g, '')
+    // Remove markdown headers that could interfere with prompt structure
+    .replace(/^#{1,6}\s+/gm, '')
+    // Remove HTML/XML tags (potential XSS vectors)
+    .replace(/<[^>]*>/g, '')
+    // Remove control characters (ASCII 0-31 except newline/tab, and 127)
+    .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '')
+    // Normalize excessive newlines (max 2 consecutive)
+    .replace(/\n{3,}/g, '\n\n')
+    // Normalize excessive spaces
+    .replace(/[ \t]{3,}/g, '  ')
+    // Trim whitespace
+    .trim()
+    // Truncate to max length
+    .substring(0, maxLength);
+}
+
+/**
+ * P1 FIX: Validate and normalize scene board timestamps.
+ * Ensures timestamps are sequential and all required fields exist.
+ *
+ * @param sceneBoard - Raw scene board from LLM response
+ * @returns Validated SceneBoard or null if invalid
+ */
+function validateSceneBoard(sceneBoard: SceneBoard | undefined): SceneBoard | null {
+  if (!sceneBoard) {
+    console.warn('[Vision Service] validateSceneBoard: No scene board provided');
+    return null;
+  }
+
+  // Check required structure
+  if (!sceneBoard.start || !sceneBoard.middle || !sceneBoard.end) {
+    console.warn('[Vision Service] validateSceneBoard: Missing start/middle/end frames');
+    return null;
+  }
+
+  // Parse timestamp string to seconds (e.g., "2.5s" -> 2.5, "0s" -> 0)
+  const parseTimestamp = (timeStr: string): number | null => {
+    if (!timeStr || typeof timeStr !== 'string') return null;
+    const match = timeStr.match(/^(\d+(?:\.\d+)?)\s*s?$/);
+    if (!match) return null;
+    const value = parseFloat(match[1]);
+    return isNaN(value) ? null : value;
+  };
+
+  // Validate each frame has required fields
+  const validateFrame = (frame: SceneBoardFrame, label: string): boolean => {
+    if (!frame.time || typeof frame.time !== 'string') {
+      console.warn(`[Vision Service] validateSceneBoard: ${label} missing time`);
+      return false;
+    }
+    if (!frame.visual || typeof frame.visual !== 'string') {
+      console.warn(`[Vision Service] validateSceneBoard: ${label} missing visual`);
+      return false;
+    }
+    if (!frame.camera || typeof frame.camera !== 'string') {
+      console.warn(`[Vision Service] validateSceneBoard: ${label} missing camera`);
+      return false;
+    }
+    return true;
+  };
+
+  // Validate all frames
+  if (!validateFrame(sceneBoard.start, 'start')) return null;
+  if (!validateFrame(sceneBoard.middle, 'middle')) return null;
+  if (!validateFrame(sceneBoard.end, 'end')) return null;
+
+  // Parse timestamps
+  const startTime = parseTimestamp(sceneBoard.start.time);
+  const middleTime = parseTimestamp(sceneBoard.middle.time);
+  const endTime = parseTimestamp(sceneBoard.end.time);
+
+  // Validate timestamps are parseable
+  if (startTime === null || middleTime === null || endTime === null) {
+    console.warn('[Vision Service] validateSceneBoard: Invalid timestamp format', {
+      start: sceneBoard.start.time,
+      middle: sceneBoard.middle.time,
+      end: sceneBoard.end.time,
+    });
+    return null;
+  }
+
+  // Validate timestamps are sequential (start <= middle <= end)
+  if (startTime > middleTime || middleTime > endTime) {
+    console.warn('[Vision Service] validateSceneBoard: Timestamps not sequential', {
+      startTime,
+      middleTime,
+      endTime,
+    });
+    return null;
+  }
+
+  // Validate reasonable duration (max 30 seconds for a clip)
+  if (endTime > 30) {
+    console.warn('[Vision Service] validateSceneBoard: End time exceeds 30s limit:', endTime);
+    return null;
+  }
+
+  // Scene board is valid
+  return sceneBoard;
+}
 
 /**
  * Normalize a score to ensure it's within bounds

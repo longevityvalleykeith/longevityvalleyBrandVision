@@ -15,6 +15,7 @@
 import { useState, useCallback, useEffect } from 'react';
 import { trpc } from '@/lib/trpc';
 import type { BrandAnalysisData } from '@/server/utils/visionAdapter';
+import type { CulturalContextInput, InputQualityAssessment } from '@/types/cultural';
 import FileDropzone from './FileDropzone';
 import CircularProgress from './CircularProgress';
 import BrandContextForm, { type BrandContext } from './BrandContextForm';
@@ -27,6 +28,8 @@ export default function BrandScanner() {
   const [isUploading, setIsUploading] = useState(false);
   const [isAuthReady, setIsAuthReady] = useState(false);
   const [brandContext, setBrandContext] = useState<BrandContext | null>(null);
+  const [culturalContext, setCulturalContext] = useState<CulturalContextInput | null>(null);
+  const [inputQuality, setInputQuality] = useState<InputQualityAssessment | null>(null);
   const [showContextForm, setShowContextForm] = useState(true);
 
   const { isAuthenticated, ensureSystemUser, getAccessToken } = useAuth();
@@ -133,6 +136,7 @@ export default function BrandScanner() {
         mimeType: activeFile.type,
         data: base64Data,
         brandContext: brandContext || undefined,
+        culturalContext: culturalContext || undefined,
       });
     };
 
@@ -167,10 +171,20 @@ export default function BrandScanner() {
   }, [handleUpload]);
 
   /**
-   * Handle brand context form changes
+   * Handle brand context form changes (with quality assessment)
    */
-  const handleContextChange = useCallback((context: BrandContext) => {
+  const handleContextChange = useCallback((context: BrandContext, quality?: InputQualityAssessment) => {
     setBrandContext(context);
+    if (quality) {
+      setInputQuality(quality);
+    }
+  }, []);
+
+  /**
+   * Handle cultural context changes from LanguageSwitcher
+   */
+  const handleCulturalContextChange = useCallback((context: CulturalContextInput) => {
+    setCulturalContext(context);
   }, []);
 
   /**
@@ -217,6 +231,7 @@ export default function BrandScanner() {
           <div className="p-6 sm:p-8 border-t border-gray-100">
             <BrandContextForm
               onChange={handleContextChange}
+              onCulturalContextChange={handleCulturalContextChange}
               initialValues={brandContext || undefined}
               isLoading={isUploading}
               compact={false}
@@ -523,6 +538,8 @@ export default function BrandScanner() {
                     sessionStorage.setItem('studioTransition', JSON.stringify({
                       analysisData,
                       brandContext,
+                      culturalContext,
+                      inputQuality,
                       imageUrl: analysisData.imageUrl,
                       timestamp: Date.now(),
                     }));

@@ -9,7 +9,7 @@
  */
 
 import { v4 as uuidv4 } from 'uuid';
-import type { GeminiAnalysisOutput, VideoScene, StylePreset } from '@/types';
+import type { GeminiAnalysisOutput, VideoScene, StylePreset, BrandSemanticLock } from '@/types';
 
 // =============================================================================
 // CONFIGURATION
@@ -29,6 +29,49 @@ interface StoryboardResult {
   scenes: VideoScene[];
   selected_style_id: string;
   invariant_token: string; // Core visual identity that persists across all scenes
+}
+
+/**
+ * Build brand context section for DeepSeek prompts
+ * Extracts relevant info from BrandSemanticLock
+ */
+function buildBrandContextPrompt(lock: BrandSemanticLock | null): string {
+  if (!lock) return '';
+
+  const parts: string[] = [];
+
+  // Brand essence section
+  if (lock.brandEssence.productInfo) {
+    parts.push(`PRODUCT: ${lock.brandEssence.productInfo}`);
+  }
+  if (lock.brandEssence.sellingPoints) {
+    parts.push(`KEY BENEFITS: ${lock.brandEssence.sellingPoints}`);
+  }
+  if (lock.brandEssence.targetAudience) {
+    parts.push(`TARGET AUDIENCE: ${lock.brandEssence.targetAudience}`);
+  }
+  if (lock.brandEssence.painPoints) {
+    parts.push(`PAIN POINTS ADDRESSED: ${lock.brandEssence.painPoints}`);
+  }
+  if (lock.brandEssence.scenarios) {
+    parts.push(`USE CASES: ${lock.brandEssence.scenarios}`);
+  }
+  if (lock.brandEssence.ctaOffer) {
+    parts.push(`CALL TO ACTION: ${lock.brandEssence.ctaOffer}`);
+  }
+
+  // Cultural voice section
+  parts.push(`\nCULTURAL VOICE (${lock.culturalVoice.region.toUpperCase()}):`);
+  parts.push(lock.culturalVoice.voiceModifier);
+  parts.push(`Formality: ${lock.culturalVoice.formality}, Warmth: ${(lock.culturalVoice.warmth * 100).toFixed(0)}%`);
+
+  // Director lens section
+  parts.push(`\nDIRECTOR VISION (${lock.directorId.toUpperCase()}):`);
+  parts.push(`Vision: ${lock.directorLens.vision}`);
+  parts.push(`Safety: ${lock.directorLens.safety}`);
+  parts.push(`Magic: ${lock.directorLens.magic}`);
+
+  return parts.join('\n');
 }
 
 // =============================================================================
@@ -76,10 +119,15 @@ export async function checkDeepSeekHealth(): Promise<boolean> {
 
 /**
  * Generate initial storyboard based on brand analysis
+ *
+ * @param analysis - Gemini visual analysis output
+ * @param availableStyles - Style presets available for this user
+ * @param semanticLock - P0 Critical: Brand semantic lock to preserve context (optional for backwards compat)
  */
 export async function generateInitialStoryboard(
   analysis: GeminiAnalysisOutput,
-  availableStyles: StylePreset[]
+  availableStyles: StylePreset[],
+  semanticLock?: BrandSemanticLock | null
 ): Promise<StoryboardResult> {
   if (!isDeepSeekConfigured()) {
     throw new Error('DeepSeek API key not configured');
@@ -88,11 +136,11 @@ export async function generateInitialStoryboard(
   // Select best style based on brand attributes
   const selectedStyle = selectBestStyle(analysis, availableStyles);
 
-  // Generate invariant visual summary
-  const invariant_token = createInvariantToken(analysis);
+  // Use semantic lock's invariant token if available, otherwise create from analysis
+  const invariant_token = semanticLock?.visualIdentity.invariantToken || createInvariantToken(analysis);
 
-  // Generate scene action tokens
-  const scenePrompts = await generateScenePrompts(analysis, selectedStyle, invariant_token);
+  // Generate scene action tokens WITH brand context
+  const scenePrompts = await generateScenePrompts(analysis, selectedStyle, invariant_token, semanticLock || null);
 
   // Create VideoScene objects
   const scenes: VideoScene[] = scenePrompts.map((action_token, index) => ({
@@ -176,15 +224,25 @@ function createInvariantToken(analysis: GeminiAnalysisOutput): string {
 
 /**
  * Generate scene prompts using DeepSeek API
+ *
+ * P0 Critical: Now accepts BrandSemanticLock to preserve brand/cultural context
  */
 async function generateScenePrompts(
   analysis: GeminiAnalysisOutput,
   style: StylePreset,
-  invariant_token: string
+  invariant_token: string,
+  semanticLock: BrandSemanticLock | null
 ): Promise<string[]> {
+  // Build brand context section from semantic lock
+  const brandContextSection = buildBrandContextPrompt(semanticLock);
+
   const systemPrompt = `You are a professional video director creating scene descriptions for a brand video.
 
-BRAND CONTEXT:
+${brandContextSection ? `==== LOCKED BRAND CONTEXT (MUST PRESERVE) ====
+${brandContextSection}
+==== END BRAND CONTEXT ====
+
+` : ''}VISUAL ANALYSIS:
 - Mood: ${analysis.brand_attributes.mood}
 - Colors: ${analysis.brand_attributes.primary_colors.join(', ')}
 - Visual Style: ${analysis.visual_elements.style_keywords.join(', ')}
@@ -198,14 +256,14 @@ INVARIANT VISUAL IDENTITY:
 ${invariant_token}
 
 TASK:
-Create ${DEFAULT_SCENE_COUNT} distinct scene descriptions that maintain the brand's visual identity while showing progression and variety.
-
-Each scene should:
-1. Be 1-2 sentences describing the visual action
-2. Maintain the invariant visual identity
-3. Follow the style preset aesthetics
+Create ${DEFAULT_SCENE_COUNT} distinct scene descriptions that:
+1. PRESERVE the locked brand context (product, benefits, target audience)
+2. Maintain the invariant visual identity throughout
+3. Respect the cultural voice and formality level
 4. Show clear progression (e.g., close-up → medium → wide, or intro → detail → finale)
 5. Be specific and actionable for video generation
+
+Each scene should be 1-2 sentences describing the visual action.
 
 OUTPUT FORMAT:
 Return ONLY ${DEFAULT_SCENE_COUNT} scene descriptions, one per line, numbered 1-${DEFAULT_SCENE_COUNT}.`;
@@ -282,41 +340,58 @@ function generateFallbackScenes(
 
 /**
  * Refine a scene based on user feedback
+ *
+ * P0 Critical: Now accepts BrandSemanticLock to constrain refinements within brand context
+ *
+ * @param scene - The scene to refine
+ * @param feedback - User feedback for YELLOW status
+ * @param isFullRegeneration - Whether this is RED (full regeneration) vs YELLOW (tweak)
+ * @param semanticLock - Brand semantic lock to preserve context during refinement
  */
 export async function refineScenePrompt(
   scene: VideoScene,
   feedback: string | null,
-  isFullRegeneration: boolean
+  isFullRegeneration: boolean,
+  semanticLock?: BrandSemanticLock | null
 ): Promise<string> {
   if (!isDeepSeekConfigured()) {
     throw new Error('DeepSeek API key not configured');
   }
 
   if (isFullRegeneration) {
-    // RED status: Complete regeneration
-    return await regenerateScenePrompt(scene);
+    // RED status: Complete regeneration (still within brand constraints)
+    return await regenerateScenePrompt(scene, semanticLock || null);
   } else {
-    // YELLOW status: Tweak with feedback
-    return await tweakScenePrompt(scene, feedback || '');
+    // YELLOW status: Tweak with feedback (constrained by brand context)
+    return await tweakScenePrompt(scene, feedback || '', semanticLock || null);
   }
 }
 
 /**
  * Completely regenerate a scene prompt (RED status)
+ *
+ * P0 Critical: Regeneration is constrained by BrandSemanticLock
  */
-async function regenerateScenePrompt(scene: VideoScene): Promise<string> {
+async function regenerateScenePrompt(scene: VideoScene, semanticLock: BrandSemanticLock | null): Promise<string> {
+  const brandContextSection = buildBrandContextPrompt(semanticLock);
+
   const systemPrompt = `You are a professional video director. Generate a completely new scene description that is DIFFERENT from the original but maintains the same sequence position.
 
-ORIGINAL SCENE (to avoid repeating):
+${brandContextSection ? `==== LOCKED BRAND CONTEXT (MUST PRESERVE) ====
+${brandContextSection}
+==== END BRAND CONTEXT ====
+
+` : ''}ORIGINAL SCENE (to avoid repeating):
 ${scene.action_token}
 
 REQUIREMENTS:
-- Create a NEW scene description
+- Create a NEW scene description that is visually different
 - Different angle, composition, or focus
 - Maintain the same general sequence purpose (scene ${scene.sequence_index})
-- 1-2 sentences, specific and actionable`;
+- PRESERVE the brand context, target audience, and cultural voice
+- 1-2 sentences, specific and actionable for video generation`;
 
-  const userPrompt = `Generate a completely new scene ${scene.sequence_index} description.`;
+  const userPrompt = `Generate a completely new scene ${scene.sequence_index} description that stays true to the brand.`;
 
   try {
     const response = await fetch(DEEPSEEK_API_URL, {
@@ -350,20 +425,35 @@ REQUIREMENTS:
 
 /**
  * Tweak a scene prompt with user feedback (YELLOW status)
+ *
+ * P0 Critical: Refinement is constrained by BrandSemanticLock
+ * User feedback must stay WITHIN the brand context - cannot inject new brand semantics
  */
-async function tweakScenePrompt(scene: VideoScene, feedback: string): Promise<string> {
+async function tweakScenePrompt(scene: VideoScene, feedback: string, semanticLock: BrandSemanticLock | null): Promise<string> {
+  const brandContextSection = buildBrandContextPrompt(semanticLock);
+
   const systemPrompt = `You are a professional video director. Refine this scene description based on user feedback.
 
-CURRENT SCENE:
+${brandContextSection ? `==== LOCKED BRAND CONTEXT (CANNOT BE CHANGED BY FEEDBACK) ====
+${brandContextSection}
+==== END BRAND CONTEXT ====
+
+IMPORTANT: User feedback can adjust VISUALS (camera angle, composition, movement) but CANNOT change the brand identity, target audience, or cultural voice. Reject feedback that contradicts the locked brand context.
+
+` : ''}CURRENT SCENE:
 ${scene.action_token}
 
 USER FEEDBACK:
 ${feedback}
 
 TASK:
-Modify the scene description to incorporate the feedback while keeping the core concept intact. Return ONLY the refined scene description (1-2 sentences).`;
+Modify the scene description to incorporate the feedback while:
+1. Keeping the brand context intact
+2. Preserving the cultural voice
+3. Maintaining the visual style and mood
+Return ONLY the refined scene description (1-2 sentences).`;
 
-  const userPrompt = `Refine the scene based on the feedback.`;
+  const userPrompt = `Refine the scene based on the feedback, staying true to the brand.`;
 
   try {
     const response = await fetch(DEEPSEEK_API_URL, {

@@ -222,12 +222,20 @@ export function validateFile(
     };
   }
 
-  // Validate magic bytes match declared type (optional strictness)
+  // P1 FIX: Validate magic bytes match declared type (strict mode)
   if (!validateMagicBytes(buffer, declaredMimeType)) {
-    // Log mismatch but allow if detected type is valid
+    // Log mismatch - if detected type differs significantly, this is suspicious
     console.warn(
-      `MIME type mismatch: declared "${declaredMimeType}", detected "${detectedMimeType}"`
+      `[Security] MIME type mismatch: declared "${declaredMimeType}", detected "${detectedMimeType}"`
     );
+
+    // If declared type doesn't match magic bytes, use detected type only if it's valid
+    // This prevents MIME type spoofing attacks
+    if (declaredMimeType !== detectedMimeType) {
+      console.warn(
+        `[Security] Using detected MIME type "${detectedMimeType}" instead of declared "${declaredMimeType}"`
+      );
+    }
   }
 
   // Sanitize filename

@@ -135,11 +135,17 @@ export function useDirector(options: UseDirectorOptions): UseDirectorReturn {
 
   // Start production
   const startProduction = useCallback(async () => {
-    if (!state) return;
-    
+    // Guard: Ensure director state is initialized
+    if (!state) {
+      const message = 'Director state not initialized. Please refresh and try again.';
+      setError(message);
+      onError?.(message);
+      return;
+    }
+
     setError(null);
     const greenScenes = state.scenes.filter(s => s.status === 'GREEN');
-    
+
     if (greenScenes.length === 0) {
       setError('At least one scene must be approved before starting production');
       return;

@@ -7,21 +7,48 @@
  * Users upload brand assets and receive pitches from 4 Directors.
  *
  * @module app/lounge/page
- * @version 1.0.0
+ * @version 1.1.0
  */
 
 'use client';
 
-import React from 'react';
+import React, { useCallback, useState } from 'react';
 import { TheLounge } from '@/client/components/lounge';
 
 export default function LoungePage(): JSX.Element {
-  const handleDirectorSelected = (directorId: string, imageUrl: string) => {
-    console.log(`Director selected: ${directorId}`);
-    console.log(`Image URL: ${imageUrl}`);
-    // TODO: Navigate to video production page or trigger production workflow
-    // router.push(`/studio?director=${directorId}&image=${encodeURIComponent(imageUrl)}`);
-  };
+  const [productionData, setProductionData] = useState<{
+    directorId: string;
+    imageUrl: string;
+    timestamp: number;
+  } | null>(null);
+
+  /**
+   * P0-1 FIX: Implement actual director selection handler
+   * Stores selection data for video production handoff
+   */
+  const handleDirectorSelected = useCallback((directorId: string, imageUrl: string) => {
+    console.log(`[LoungePage] Director finalized: ${directorId}`);
+    console.log(`[LoungePage] Image URL: ${imageUrl}`);
+
+    // Store production data for handoff
+    const data = {
+      directorId,
+      imageUrl,
+      timestamp: Date.now(),
+    };
+    setProductionData(data);
+
+    // Store in sessionStorage for potential page refresh or navigation
+    try {
+      sessionStorage.setItem('productionHandoff', JSON.stringify(data));
+      console.log('[LoungePage] Production data stored for handoff');
+    } catch (err) {
+      console.error('[LoungePage] Failed to store production data:', err);
+    }
+
+    // Future: Navigate to video production page
+    // router.push(`/production?director=${directorId}`);
+  }, []);
 
   return <TheLounge onDirectorSelected={handleDirectorSelected} />;
 }

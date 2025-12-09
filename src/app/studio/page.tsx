@@ -1,34 +1,57 @@
-'use client';
-
 /**
- * Studio Page - BrandScanner Integration
+ * The Director's Studio
  *
- * Upload images for brand analysis and view results.
- * Refactored to use production-ready BrandScanner component.
+ * Route: /studio (renamed from /lounge)
  *
- * @module app/studio
- * @version 3.1.0
+ * Full Director Experience - Complete brand content creation journey:
+ * - Upload brand assets
+ * - Receive pitches from 4 Rashomon Directors
+ * - Select Director and approve scenes
+ * - Route to video production
+ *
+ * @module app/studio/page
+ * @version 2.0.0 - Renamed from Lounge to Studio
  */
 
-import BrandScanner from '@/client/components/BrandScanner';
+'use client';
 
-export default function StudioPage() {
-  return (
-    <div className="min-h-screen bg-gradient-to-br from-purple-50 via-blue-50 to-indigo-50 p-4 sm:p-6 md:p-8">
-      <div className="max-w-7xl mx-auto">
-        {/* Header */}
-        <header className="mb-8 sm:mb-12 text-center">
-          <h1 className="text-3xl sm:text-4xl md:text-5xl font-bold text-gray-900 mb-3 sm:mb-4">
-            BrandScanner Studio
-          </h1>
-          <p className="text-base sm:text-lg md:text-xl text-gray-600 max-w-2xl mx-auto">
-            Upload your brand visuals for AI-powered analysis
-          </p>
-        </header>
+import React, { useCallback, useState } from 'react';
+import { TheLounge } from '@/client/components/lounge';
 
-        {/* Main Content */}
-        <BrandScanner />
-      </div>
-    </div>
-  );
+export default function StudioPage(): JSX.Element {
+  const [productionData, setProductionData] = useState<{
+    directorId: string;
+    imageUrl: string;
+    timestamp: number;
+  } | null>(null);
+
+  /**
+   * Director selection handler
+   * Stores selection data for video production handoff to Launchpad
+   */
+  const handleDirectorSelected = useCallback((directorId: string, imageUrl: string) => {
+    console.log(`[StudioPage] Director finalized: ${directorId}`);
+    console.log(`[StudioPage] Image URL: ${imageUrl}`);
+
+    // Store production data for handoff
+    const data = {
+      directorId,
+      imageUrl,
+      timestamp: Date.now(),
+    };
+    setProductionData(data);
+
+    // Store in sessionStorage for Launchpad handoff
+    try {
+      sessionStorage.setItem('productionHandoff', JSON.stringify(data));
+      console.log('[StudioPage] Production data stored for Launchpad handoff');
+    } catch (err) {
+      console.error('[StudioPage] Failed to store production data:', err);
+    }
+
+    // Future: Navigate to Launchpad for deployment
+    // router.push(`/launchpad?director=${directorId}`);
+  }, []);
+
+  return <TheLounge onDirectorSelected={handleDirectorSelected} />;
 }

@@ -528,12 +528,12 @@ export default function BrandScanner() {
               </div>
             </div>
 
-            {/* CTA - Proceed to Director's Lounge */}
+            {/* CTA - Proceed to Director's Studio */}
             {analysisData.quality.integrity >= 0.6 && (
               <div className="mt-6 pt-6 border-t border-gray-200">
                 <button
                   onClick={() => {
-                    // Pass analysis data and brand context to /lounge
+                    // Pass analysis data and brand context to /studio
                     // Note: Don't store preview (base64) - use imageUrl instead to avoid quota errors
                     sessionStorage.setItem('studioTransition', JSON.stringify({
                       analysisData,
@@ -543,8 +543,8 @@ export default function BrandScanner() {
                       imageUrl: analysisData.imageUrl,
                       timestamp: Date.now(),
                     }));
-                    // Navigate to lounge with carousel view
-                    window.location.href = '/lounge';
+                    // Navigate to studio with carousel view
+                    window.location.href = '/studio';
                   }}
                   className="block w-full py-4 px-6 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white font-bold text-center rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 transform hover:-translate-y-1 cursor-pointer"
                 >

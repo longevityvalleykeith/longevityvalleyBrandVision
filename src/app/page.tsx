@@ -104,20 +104,26 @@ export default function HeroPage() {
 
           {/* CTA Buttons */}
           <div className="cta-group">
-            <Link href="/lounge" className="cta-primary">
+            <Link href="/studio" className="cta-primary">
               <span className="cta-icon-wrapper">
                 <svg className="cta-icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                   <polygon points="5 3 19 12 5 21 5 3" />
                 </svg>
               </span>
               <span className="cta-text">
-                <span className="cta-main">Enter The Lounge</span>
-                <span className="cta-sub">Meet Your Directors</span>
+                <span className="cta-main">Enter The Studio</span>
+                <span className="cta-sub">Full Director Experience</span>
               </span>
             </Link>
 
-            <Link href="/studio" className="cta-secondary">
-              Quick Analysis
+            <Link href="/launchpad" className="cta-secondary">
+              <span className="cta-secondary-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ width: '16px', height: '16px', marginRight: '8px' }}>
+                  <path d="M4.5 16.5c-1.5 1.26-2 5-2 5s3.74-.5 5-2c.71-.84.7-2.13-.09-2.91a2.18 2.18 0 0 0-2.91-.09z" />
+                  <path d="m12 15-3-3a22 22 0 0 1 2-3.95A12.88 12.88 0 0 1 22 2c0 2.72-.78 7.5-6 11a22.35 22.35 0 0 1-4 2z" />
+                </svg>
+              </span>
+              Launchpad
             </Link>
           </div>
         </section>
@@ -401,6 +407,8 @@ export default function HeroPage() {
         }
 
         .cta-secondary {
+          display: inline-flex;
+          align-items: center;
           padding: 16px 32px;
           background: transparent;
           border: 1px solid rgba(255, 255, 255, 0.2);
@@ -415,6 +423,11 @@ export default function HeroPage() {
           background: rgba(255, 255, 255, 0.1);
           border-color: rgba(255, 255, 255, 0.3);
           color: white;
+        }
+
+        .cta-secondary-icon {
+          display: inline-flex;
+          align-items: center;
         }
 
         /* Director Showcase */

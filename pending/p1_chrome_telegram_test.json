@@ -1,0 +1,30 @@
+{
+  "dispatch_id": "P1-CHROME-TELEGRAM-TEST",
+  "created": "2026-03-27T09:35:00+08:00",
+  "status": "PENDING_COWORK_EXECUTION",
+  "problem_id": "P1",
+  "problem_name": "Chrome→Telegram Web clipboard paste",
+  "priority": "HIGH",
+  "binary_eval": "0=not_sent, 1=sent_yes",
+  "test_caption": "🏌️‍♂️ DR MAGfield — Malaysia's 1st Golfers Health Lounge\n\nYour game. Your recovery. DR MAGfield — 3-in-1 MAGfield therapy at KRPM, Sungai Buloh.\n\n您的康复，从这里开始。DR MAGfield — 马来西亚首家高尔夫健康休闲体验馆。\n\n📍 Kelab Rahman Putra Malaysia (KRPM)\n🔗 +6012-377 0011 (Arie Ong)\n#DrMAGfield #GolfersHealth #PainAndPerformance #MagneticVortex #KRPM #SungaiBuloh #LongevityValley",
+  "chrome_steps": [
+    "1. Open Chrome browser",
+    "2. Navigate to https://web.telegram.org/k/ (or t.me/lv_agent_bot)",
+    "3. Select the correct chat/channel for DR MAGfield",
+    "4. Click message input field",
+    "5. Single Ctrl+V to paste caption",
+    "6. Press Enter",
+    "7. Verify message appears in Telegram chat"
+  ],
+  "success_criteria": "Message visible in Telegram channel within 30 seconds of sending",
+  "coworker_should_write_results_here": "/Users/longevityvalley.ai/Documents/Claude/Projects/LV AI Brand Vision Pipeline/geo-content-pipeline/pending/p1_results.json",
+  "result_schema": {
+    "dispatch_id": "P1-CHROME-TELEGRAM-TEST",
+    "date": "ISO-8601",
+    "status": "SUCCESS | FAILURE",
+    "binary_score": "1 | 0",
+    "message_visible_in_telegram": true,
+    "error_if_any": "string or null",
+    "tokens_spent": 0
+  }
+}

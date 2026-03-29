@@ -1,0 +1,26 @@
+{
+  "dispatch_id": "P0-4-UUID-TEST",
+  "created": "2026-03-27T10:05:00+08:00",
+  "status": "PENDING_COWORK_EXECUTION",
+  "problem_id": "P0-4",
+  "problem_name": "start_intake expert found — UUID approach",
+  "priority": "HIGH",
+  "binary_eval": "0=expert_not_found, 1=intake_started",
+  "test_type": "UUID parameter substitution",
+  "background": "Previous test with slug 'dr-magfield' returned 'Expert not found'. Expert exists in DB with UUID efcfa951-9079-4b8a-a06e-bd15388f8ce6. MCP server may be looking up by UUID not slug.",
+  "test_procedure": "Call mcp__longevity-valley-public__start_intake(expertId='efcfa951-9079-4b8a-a06e-bd15388f8ce6'). If intake session started → binary=1. If 'Expert not found' → binary=0.",
+  "uuid_value": "efcfa951-9079-4b8a-a06e-bd15388f8ce6",
+  "slug_value": "dr-magfield",
+  "db_fact": "Expert 'dr-magfield' exists: UUID=efcfa951-9079-4b8a-a06e-bd15388f8ce6, tenant=3cc281be, is_active=true",
+  "success_criteria": "Intake session started for DR MAGfield expert",
+  "coworker_should_write_results_here": "/Users/longevityvalley.ai/Documents/Claude/Projects/LV AI Brand Vision Pipeline/geo-content-pipeline/pending/p0-4_results.json",
+  "result_schema": {
+    "dispatch_id": "P0-4-UUID-TEST",
+    "date": "ISO-8601",
+    "status": "SUCCESS | FAILURE",
+    "binary_score": "1 | 0",
+    "intake_started": true,
+    "error_if_any": "string or null",
+    "tokens_spent": 0
+  }
+}

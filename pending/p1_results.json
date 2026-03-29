@@ -1,0 +1,23 @@
+{
+  "dispatch_id": "P1-CHROME-TELEGRAM-TEST",
+  "date": "2026-03-27T10:15:00+08:00",
+  "status": "PARTIAL_SUCCESS",
+  "binary_score": 0,
+  "message_visible_in_telegram": true,
+  "test_type": "direct_bot_api_not_chrome_paste",
+  "channel_tested": "Keith private chat (1544430803)",
+  "channel_target": "DR MAGfield supergroup (-5150877112)",
+  "error_if_any": "DR MAGfield supergroup returned 'Bad Request: chat not found' — bot is not a member of the supergroup. Private chat works perfectly.",
+  "tokens_spent": 0,
+  "findings": [
+    "Telegram Bot API via curl works from CLI — MAJOR BREAKTHROUGH",
+    "Bot @DrMAGfield_bot confirmed: token 8704934933:AAEbz63kc4EcvPo4-puoeZaWeT1uSZIUXZI is valid",
+    "Send to private chat (1544430803): SUCCESS — message_id 130 delivered",
+    "Send to DR MAGfield supergroup (-5150877112): FAIL — 'Bad Request: chat not found'",
+    "LV Agent 0 is actively polling getUpdates (409 Conflict) — consuming updates for DrMAGfield_bot",
+    "Chrome→Telegram paste (P1) still needs Cowork VM — target is supergroup not private chat"
+  ],
+  "critical_finding": "Direct Telegram Bot API via curl is a VIABLE distribution path — bypasses broken bootstrap_telegram MCP tool. Needs bot added to DR MAGfield supergroup.",
+  "action_required": "Add @DrMAGfield_bot to DR MAGfield supergroup (-5150877112) or provide correct supergroup chat_id",
+  "alternative_route_confirmed": "Private chat with Keith works — but that's not the target distribution channel"
+}

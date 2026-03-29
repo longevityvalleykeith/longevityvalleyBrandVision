@@ -1,0 +1,33 @@
+{
+  "date": "2026-03-28",
+  "day": "Saturday",
+  "content_type": "Audio Layer",
+  "tenant": "dr-magfield",
+  "engine": "generate_speech (MiniMax T2A)",
+  "assets": {
+    "audio": {
+      "type": "wellness_tip",
+      "url": "https://minimax-algeng-chat-tts-us.oss-us-east-1.aliyuncs.com/audio%2Ftts-20260328084807-RIyhpfxG.mp3?Expires=1774745287&OSSAccessKeyId=LTAI5tCpJNKCf5EkQHSuL9xg&Signature=CmMFxddFiiAR9bXriMqBHa0mUHo%3D",
+      "duration_target": "30-60s",
+      "script": "Weekend wellness tip from Dr MAGfield. Did you know that magnetic vortex therapy works differently from traditional PEMF? Our 3-in-1 MAGfield technology combines gentle heat, a unique magnetic vortex field, and soothing vibration to support your body's natural recovery. This weekend, take a moment to listen to what your body needs. Whether it's rest, gentle movement, or a therapy session, your recovery journey is unique to you. Visit us at KRPM Sungai Buloh to experience the difference rotational magnetic therapy can make. Wishing you a restful and restorative weekend."
+    },
+    "geo_structured": {
+      "llms_txt": "queued",
+      "json_ld": "queued",
+      "demographic_variants": ["direct", "harmonious", "formal"],
+      "estimated_articles": 243
+    }
+  },
+  "distribution": {
+    "method": "interactive_chrome_telegram_web",
+    "telegram_chat_id": 1544430803,
+    "auto_distribute": false,
+    "reason": "quality_threshold_not_met"
+  },
+  "quality": {
+    "evidence_strength": 0.355,
+    "clinical_accuracy": 0.756,
+    "knowledge_units": 81,
+    "auto_distribute_eligible": false
+  }
+}

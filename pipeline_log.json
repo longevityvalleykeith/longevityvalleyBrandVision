@@ -1,0 +1,620 @@
+{
+  "pipeline_version": "2.0",
+  "created": "2026-03-23T00:00:00+08:00",
+  "last_updated": "2026-03-28T09:19:00+08:00",
+  "tenants": [
+    "dr-magfield",
+    "eterna-science"
+  ],
+  "runs": [
+    {
+      "run_id": "run-magfield-003-20260324",
+      "date": "2026-03-24T10:12:00+08:00",
+      "pipeline_version": "2.0",
+      "tenant": "dr-magfield",
+      "content_type": "text-to-image",
+      "demographic_variant": "harmonious",
+      "topic": "3-in-1 MAGfield Therapy — Wellness Recovery",
+      "status": "COMPLETED_ABOVE_THRESHOLD",
+      "execution_tier": "tier3_interactive",
+      "engine": "higgsfield-seedream-4.5",
+      "images_generated": 3,
+      "best_image_selected": "center (DR MAGfield spiral logo backlit in warm gold, therapy bed with golden energy waves)",
+      "resolved_blocking_issues": [
+        "RESOLVED: Tier 3 interactive fallback via Chrome MCP to Higgsfield succeeded"
+      ],
+      "prompt_structured": {
+        "primary_motion": "Smooth warm glow expanding from MAGfield therapy bed as patient relaxes into treatment, gentle golden light pulse",
+        "style": "Warm Gold #C9A96E accent lighting, serene wellness spa atmosphere, Recovery Protocol design variant, soft focus background",
+        "constraint": "DR MAGfield spiral vortex logo sharp and legible, therapy bed centered, patient showing comfort and relaxation",
+        "negative": "No text distortion, no harsh clinical lighting, no static opening, no extra limbs, no color banding, no abrupt cuts"
+      },
+      "prompt_assembled": "Smooth warm glow expanding from MAGfield therapy bed as patient relaxes into treatment, gentle golden light pulse — Warm Gold accent lighting, serene wellness spa atmosphere, Recovery Protocol design, soft focus background — DR MAGfield spiral vortex logo sharp and legible throughout — Avoid: text distortion, harsh clinical lighting, static opening, extra limbs, color banding, abrupt cuts",
+      "requested_specs": {
+        "aspect_ratio": "9:16",
+        "resolution": "1440x2560",
+        "quality": "2K"
+      },
+      "actual_specs": {
+        "width": 1440,
+        "height": 2560,
+        "aspect_ratio": "9:16",
+        "quality": "Basic",
+        "format": "png"
+      },
+      "quality_score": {
+        "resolution_compliance": 1,
+        "visual_quality": 5,
+        "brand_integrity": 5,
+        "platform_readiness": 1,
+        "composite": 6.0,
+        "notes": "Perfect score. DR MAGfield spiral electromagnetic vortex logo on dark slate wall with warm gold backlighting — sharp and legible. Therapy bed with golden warm energy waves. Brand colors exact match: Slate #2D3748, Warm Gold #C9A96E, Sage #7A9A7E accents. Recovery Protocol design variant achieved."
+      },
+      "captions": {
+        "en": "Recovery begins with warmth. DR MAGfield's 3-in-1 therapy — Heat, Magnetic Vortex & Vibration — designed for your body's natural healing journey. Visit Arie Ong at KRPM. #DrMAGfield #WellnessRecovery #3in1Therapy #MagneticVortex #KRPM #SungaiBuloh #LongevityValley",
+        "zh": "温暖中开始修复。DR MAGfield 3合1疗法 — 热疗、磁旋涡与振动 — 为您身体的自然修复之旅而设计。到KRPM预约Arie Ong。#DrMAGfield #健康修复 #3合1疗法 #磁旋涡 #KRPM #双溪毛糯"
+      },
+      "output_location": "Higgsfield longevityvalley account + host macOS Downloads",
+      "geo_metadata": {
+        "tenant_id": "longevityvalley",
+        "brand": "Dr MAGfield",
+        "geo_location": "Kelab Rahman Putra Malaysia (KRPM), Sungai Buloh",
+        "geo_coordinates": "3.1884, 101.6072",
+        "content_type": "text-to-image",
+        "platform_targets": [
+          "instagram_reels",
+          "tiktok",
+          "telegram"
+        ],
+        "generation_date": "2026-03-24T10:12:00+08:00",
+        "demographic_variant": "harmonious"
+      },
+      "animate_pending": true,
+      "animate_note": "Image ready for I2V animation via Kling 3.0 (8.75 credits) or Luma Ray-2 API from native macOS"
+    },
+    {
+      "run_id": "run-scheduled-004-20260324",
+      "date": "2026-03-24T11:01:00+08:00",
+      "pipeline_version": "2.0",
+      "tenant": "eterna-science",
+      "content_type": "text-to-video",
+      "demographic_variant": "harmonious",
+      "topic": "PEMF Therapy — Cellular Regeneration (animate existing T2I asset)",
+      "status": "TIER2_RETRY_VM_BLOCKED",
+      "execution_tier": "tier2_scheduled_retry",
+      "trigger": "Scheduled task lv-geo-content-daily (Tier 2 retry, originally scheduled 11:00 AM)",
+      "engine_attempted": "luma-ray2",
+      "preflight_result": {
+        "http_code": "000",
+        "exit_code": 56,
+        "error": "Network data failure — VM sandbox cannot reach api.lumalabs.ai",
+        "known_limitation": true
+      },
+      "assessment": {
+        "today_rotation": "Tuesday = Eterna Science primary, Text-to-Image",
+        "t2i_already_complete": true,
+        "t2i_runs": [
+          "run-eterna-002-20260324 (6.0)",
+          "run-magfield-003-20260324 (6.0)"
+        ],
+        "i2v_animation_pending": true,
+        "i2v_blocked_reason": "Luma API unreachable from VM sandbox. Requires native macOS terminal or interactive Cowork session with Chrome MCP.",
+        "staged_prompts_available": [
+          "run-002-20260323 (DR MAGfield I2V)",
+          "run-eterna-001-20260323 (Eterna Science I2V)"
+        ]
+      },
+      "distribution_readiness": {
+        "static_images_distributable": true,
+        "distributable_assets": [
+          {
+            "run_id": "run-eterna-002-20260324",
+            "type": "T2I",
+            "score": 6.0,
+            "captions_ready": true
+          },
+          {
+            "run_id": "run-magfield-003-20260324",
+            "type": "T2I",
+            "score": 6.0,
+            "captions_ready": true
+          }
+        ],
+        "note": "Both T2I assets scored 6.0/6.0 with bilingual captions ready. Can be distributed as static image posts to Telegram/Instagram/TikTok while I2V animation is pending."
+      },
+      "next_actions": [
+        "TIER3_ESCALATION: I2V animation requires interactive Cowork session or native macOS luma-generate.sh",
+        "DISTRIBUTION: Static images (run-eterna-002, run-magfield-003) are above threshold and ready for channel delivery",
+        "ANIMATE_QUEUE: 2 images queued for I2V — use Luma Ray-2 from native macOS or Kling 3.0 from interactive Higgsfield"
+      ],
+      "improvement_notes": "VM sandbox API limitation is architectural — not transient. All future scheduled task video generation will fail in VM. Recommend: (1) shift video generation to interactive sessions, (2) use scheduled task only for planning/logging/distribution coordination, (3) explore if Cowork can configure scheduled tasks on host macOS."
+    },
+    {
+      "run_id": "run-sat-20260328",
+      "date": "2026-03-28T08:47:00+08:00",
+      "pipeline_version": "4.0",
+      "tenant": "dr-magfield",
+      "content_type": "audio-layer-saturday",
+      "platform": "minimax-t2a",
+      "model": "generate_speech",
+      "status": "EXECUTE_COMPLETE",
+      "assets_staged": [
+        "audio_wellness_tip",
+        "llms_txt",
+        "json_ld",
+        "demographic_variants_3x"
+      ],
+      "audio_url": "https://minimax-algeng-chat-tts-us.oss-us-east-1.aliyuncs.com/audio%2Ftts-20260328084807-RIyhpfxG.mp3?Expires=1774745287&OSSAccessKeyId=LTAI5tCpJNKCf5EkQHSuL9xg&Signature=CmMFxddFiiAR9bXriMqBHa0mUHo%3D",
+      "geo_publish": {
+        "knowledge_units": 81,
+        "crystallized_rules": 63,
+        "variants": [
+          "direct",
+          "harmonious",
+          "formal"
+        ],
+        "estimated_articles": 243
+      },
+      "quality_gate": "SOFT_PASS",
+      "evidence_strength": 0.355,
+      "clinical_accuracy": 0.756,
+      "distribute_at": "09:15",
+      "hold_status": "not_held",
+      "sli_attempt": 1,
+      "notes": "Saturday Audio Layer. generate_speech working. Distribution needs interactive Chrome. Downloads empty.",
+      "phase": "EXECUTE",
+      "delivery_results": {
+        "telegram": "success",
+        "telegram_method": "chrome_saved_messages",
+        "telegram_note": "Bot API blocked by VM proxy (403). Delivered via Chrome to Saved Messages (Keith DM). Supergroup skipped (quality < auto-distribute threshold).",
+        "geo_seeding": "success",
+        "geo_details": "81 units, 63 rules, 243 articles across 3 demographic variants queued",
+        "channels_reached": 1,
+        "error": null
+      },
+      "sli_success": false,
+      "sli_note": "Partial: content reached Keith DM + GEO seeding queued, but supergroup not reached (quality gate). SLI counts as fail per full-delivery criteria.",
+      "executed_at": "2026-03-28T09:19:00+08:00"
+    }
+  ],
+  "infrastructure_issues_log": [
+    {
+      "date": "2026-03-23",
+      "issue": "Higgsfield.ai unreachable",
+      "details": "Multiple browser navigation attempts to higgsfield.ai all resulted in 60-second timeouts. Site may be experiencing downtime or the browser sandbox network does not have external web access during scheduled runs.",
+      "impact": "All image/video generation blocked for today's run",
+      "recommendation": "Test higgsfield.ai accessibility before next scheduled run. Consider adding a pre-flight connectivity check to the pipeline. Investigate whether scheduled task environment has different network access than interactive sessions."
+    },
+    {
+      "date": "2026-03-23",
+      "issue": "Google Drive images inaccessible",
+      "details": "Browser navigation to Drive folders timed out. LV Drive sync tool reports NOT_CONNECTED. Google Drive MCP tool only reads Google Docs (not images/video). No local copies of source images available.",
+      "impact": "Cannot perform Image-to-Video generation — no source images",
+      "recommendation": "Pre-download key source images to workspace during an interactive session so pipeline has local copies for offline/fallback use. Connect LV Drive sync in admin settings."
+    },
+    {
+      "date": "2026-03-24",
+      "issue": "Luma API unreachable from VM sandbox",
+      "details": "Pre-flight curl to api.lumalabs.ai returned exit code 56 (network data failure). Confirmed: VM sandbox (Cowork scheduled task environment) cannot reach external APIs. This is a documented architectural limitation — the luma-generate.sh script is designed for native macOS execution, not the VM.",
+      "impact": "Tier 1 generation blocked. Tier 2 retry at 11:00 AM will face same limitation. Tier 3 interactive fallback required.",
+      "recommendation": "CRITICAL: Scheduled tasks run in VM sandbox which has no external API access. Options: (1) Run luma-generate.sh manually from native macOS Terminal, (2) Use Chrome browser MCP in interactive Cowork session to access Higgsfield, (3) Investigate if scheduled tasks can be configured to run on host macOS instead of VM. This is the ROOT CAUSE of consecutive generation failures.",
+      "severity": "HIGH — blocks all automated content generation"
+    }
+  ],
+  "weekly_summary": {
+    "week_of": "2026-03-23",
+    "assets_generated": 6,
+    "assets_above_threshold": 6,
+    "assets_below_threshold": 1,
+    "assets_pending_animation": 2,
+    "best_score": 6.0,
+    "worst_score": 2.0,
+    "avg_score_new": 6.0,
+    "retake_queue": [
+      "run-001-20260323"
+    ],
+    "notes": "Day 2 BREAKTHROUGH: Interactive Tier 3 fallback via Chrome MCP to Higgsfield produced 6 brand images (3 Eterna Science PEMF + 3 DR MAGfield wellness) — all at 1440x2560 9:16, all scoring 6.0/6.0. Seedream 4.5 engine via Nano Banana Pro. Free tier, zero credits. Images ready for I2V animation and distribution. Pipeline engine matrix updated: Higgsfield T2I confirmed as PRIMARY for interactive sessions."
+  },
+  "sli_tracking": {
+    "total_scheduled_days": 3,
+    "successful_generation_days": 1,
+    "successful_delivery_days": 0,
+    "sli_percentage": 0.0,
+    "sli_note": "Day 3: No new generation. Distribution blocked by multi-factor issues (image files not in VM, all patients cold on Wednesday, no Telegram send tool, VM sandbox limitations). 2 assets at 6.0 remain undistributed since Mar 24.",
+    "error_budget_remaining": 3,
+    "error_budget_year": 2026,
+    "tier_usage": {
+      "tier1": 0,
+      "tier2": 2,
+      "tier3": 2,
+      "tier4": 0
+    },
+    "consecutive_generation_failures": 0,
+    "last_success_date": "2026-03-24",
+    "last_success_engine": "higgsfield-seedream-4.5",
+    "last_success_tier": "tier3_interactive",
+    "engine_matrix_version": "2.1",
+    "engines_available": [
+      "luma-ray2",
+      "higgsfield-kling3.0",
+      "higgsfield-seedream4.5",
+      "higgsfield-nanobanana2"
+    ],
+    "engines_future": [
+      "fal-ai"
+    ],
+    "tier2_retry_scheduled": null,
+    "tier2_retry_executed": "2026-03-24T11:01:00+08:00",
+    "tier2_retry_result": "VM_BLOCKED — Luma API unreachable, same as all prior VM attempts",
+    "tier3_notification_enabled": true,
+    "tier3_escalation_needed": true,
+    "tier3_escalation_reason": "I2V animation requires interactive session or native macOS. T2I assets ready for static distribution.",
+    "interactive_session_proven": true
+  },
+  "distribution_runs": [
+    {
+      "distribution_id": "dist-001-20260324",
+      "scheduled_time": "2026-03-24T09:15:00+08:00",
+      "status": "NO_ASSET_FOR_DISTRIBUTION",
+      "reason": "No asset has passed quality gate (composite ≥ 4.0). All generation runs are either STAGED_PENDING_EXECUTION (blocked by VM sandbox API limitations) or COMPLETED_BELOW_THRESHOLD (run-001 scored 2.0). Tier 4 substitution ineligible — retake_queue asset (run-001-20260323) also below threshold. Distribution skipped per policy: do not distribute below-threshold content without explicit approval.",
+      "assets_checked": [
+        {
+          "run_id": "run-magfield-003-20260324",
+          "status": "STAGED_PENDING_EXECUTION",
+          "quality_score": null
+        },
+        {
+          "run_id": "run-eterna-002-20260324",
+          "status": "STAGED_PENDING_EXECUTION",
+          "quality_score": null
+        },
+        {
+          "run_id": "run-002-20260323",
+          "status": "STAGED_PENDING_EXECUTION",
+          "quality_score": null
+        },
+        {
+          "run_id": "run-eterna-001-20260323",
+          "status": "STAGED_PENDING_EXECUTION",
+          "quality_score": null
+        },
+        {
+          "run_id": "run-001-20260323",
+          "status": "COMPLETED_BELOW_THRESHOLD",
+          "quality_score": 2.0
+        }
+      ],
+      "tier4_substitution_attempted": false,
+      "tier4_reason": "Highest retake_queue asset scored 2.0 — below 4.0 threshold. Requires explicit approval to distribute.",
+      "channels_attempted": [],
+      "channels_successful": [],
+      "audience_size": 0,
+      "errors": [
+        "no_distributable_content"
+      ],
+      "sli_impact": "No increment to successful_delivery_days. Consecutive failures now at 2 (generation-side). Distribution itself correctly blocked.",
+      "recommendation": "ROOT CAUSE is upstream generation, not distribution. All 4 staged prompts are ready — execute in interactive Cowork session or via native macOS terminal (luma-generate.sh). Once any asset passes quality gate, distribution can proceed."
+    },
+    {
+      "distribution_id": "dist-002-20260324",
+      "scheduled_time": "2026-03-24T11:01:00+08:00",
+      "status": "ASSETS_AVAILABLE_PENDING_INTERACTIVE",
+      "reason": "Tier 2 scheduled retry confirmed 2 assets above threshold (run-eterna-002: 6.0, run-magfield-003: 6.0). Both are T2I static images with bilingual captions ready. Distribution requires interactive session for Telegram API delivery or browser-based channel posting. Scheduled task (VM sandbox) cannot execute channel delivery.",
+      "distributable_assets": [
+        {
+          "run_id": "run-eterna-002-20260324",
+          "tenant": "eterna-science",
+          "type": "T2I",
+          "score": 6.0,
+          "format": "png",
+          "resolution": "1440x2560",
+          "captions_ready": true
+        },
+        {
+          "run_id": "run-magfield-003-20260324",
+          "tenant": "dr-magfield",
+          "type": "T2I",
+          "score": 6.0,
+          "format": "png",
+          "resolution": "1440x2560",
+          "captions_ready": true
+        }
+      ],
+      "channels_pending": [
+        "telegram",
+        "instagram",
+        "tiktok"
+      ],
+      "consent_check_required": true,
+      "recommendation": "Execute distribution in next interactive Cowork session: (1) consent_check per patient, (2) bootstrap_telegram for Telegram delivery, (3) Chrome MCP for Instagram/TikTok uploads. Static images can go out immediately — I2V video versions can follow when animated."
+    },
+    {
+      "distribution_id": "social-evening-001-20260324",
+      "scheduled_time": "2026-03-24T19:00:00+08:00",
+      "task": "lv-geo-social-evening",
+      "status": "NO_SOCIAL_ASSET_TODAY",
+      "precondition_check": {
+        "quality_gate_passed": true,
+        "qualifying_assets": [
+          {
+            "run_id": "run-eterna-002-20260324",
+            "tenant": "eterna-science",
+            "type": "T2I",
+            "score": 6.0,
+            "format": "9:16"
+          },
+          {
+            "run_id": "run-magfield-003-20260324",
+            "tenant": "dr-magfield",
+            "type": "T2I",
+            "score": 6.0,
+            "format": "9:16"
+          }
+        ],
+        "prior_channel_delivery_today": false,
+        "prior_channel_delivery_detail": "dist-001 was NO_ASSET_FOR_DISTRIBUTION (no qualifying content at morning run). dist-002 status is ASSETS_AVAILABLE_PENDING_INTERACTIVE — blocked in VM sandbox, zero channels received delivery. No asset was successfully delivered to any channel today.",
+        "vertical_format_ok": true,
+        "precondition_2_result": "FAIL — required delivered-to-channel prior to evening upload; none found",
+        "verdict": "SKIP — precondition #2 not met"
+      },
+      "reason": "Qualifying assets exist (6.0 score, 9:16 format) but distribution pre-condition not met: no asset was successfully delivered to any channel earlier today. Per pipeline policy, social upload requires prior successful channel delivery as prerequisite. Skipping Instagram Reels and TikTok upload for 2026-03-24.",
+      "channels_attempted": [],
+      "channels_successful": [],
+      "retry_note": "When Keith manually executes the morning/noon distribution in an interactive Cowork session (dist-002), both assets (run-eterna-002 and run-magfield-003) are ready for Telegram + Instagram + TikTok. After that delivery succeeds, this social upload can be re-executed or performed manually.",
+      "sli_impact": "No SLI increment. Correct skip per policy.",
+      "logged_by": "scheduled-task lv-geo-social-evening",
+      "logged_at": "2026-03-24T19:00:00+08:00"
+    },
+    {
+      "distribution_id": "dist-001-20260325",
+      "scheduled_time": "2026-03-25T09:15:00+08:00",
+      "task": "lv-geo-content-distribute",
+      "status": "DISTRIBUTION_BLOCKED_MULTI_FACTOR",
+      "precondition_check": {
+        "generation_today": false,
+        "previously_staged_above_threshold": true,
+        "qualifying_assets": [
+          {
+            "run_id": "run-eterna-002-20260324",
+            "tenant": "eterna-science",
+            "type": "T2I",
+            "score": 6.0,
+            "captions_ready": true
+          },
+          {
+            "run_id": "run-magfield-003-20260324",
+            "tenant": "dr-magfield",
+            "type": "T2I",
+            "score": 6.0,
+            "captions_ready": true
+          }
+        ],
+        "image_files_accessible_in_vm": false,
+        "image_file_location": "host macOS Downloads (not accessible from VM sandbox)"
+      },
+      "audience_resolution": {
+        "roster_queried": true,
+        "dr_magfield_expert": "arie-ong",
+        "eterna_science_expert": "keith-koo",
+        "total_patients": 48,
+        "unique_patients_estimated": 24,
+        "patients_with_telegram_id": 0,
+        "patients_with_whatsapp_id": 0,
+        "active_sessions": 0,
+        "all_patients_cold": true,
+        "note": "Roster returned 48 entries (includes duplicates across profile+identity records). All patients have sessionCount = 0. No telegram_id or whatsapp_id identifiers surfaced in roster response."
+      },
+      "psv_segmentation": {
+        "cold_count": 48,
+        "warm_count": 0,
+        "active_count": 0,
+        "dormant_count": 0,
+        "today_is_monday": false,
+        "cold_segment_rule": "1x/week on Monday only — today is Wednesday, SKIP",
+        "personalized_delivery_eligible": 0,
+        "verdict": "All patients are cold segment. Wednesday distribution skipped per cadence rule."
+      },
+      "channel_assessment": {
+        "telegram_api": {
+          "attempted": false,
+          "reason": "bootstrap_telegram is a setup tool (bot connection), not a message sender. No send_message API available in current MCP toolset. VM sandbox also cannot reach external APIs.",
+          "blocker": "NO_SEND_TOOL + VM_SANDBOX_BLOCKED"
+        },
+        "telegram_browser_fallback": {
+          "attempted": false,
+          "reason": "Chrome MCP not available in scheduled task context (no interactive browser).",
+          "blocker": "NO_BROWSER_IN_SCHEDULED_TASK"
+        },
+        "whatsapp_business_api": {
+          "attempted": false,
+          "reason": "Phase 3 feature — API not yet connected. Also all patients are cold (Wednesday skip).",
+          "blocker": "NOT_CONFIGURED + COLD_SEGMENT_SKIP"
+        },
+        "whatsapp_channel": {
+          "attempted": false,
+          "reason": "Requires browser agent. Not available in VM scheduled task.",
+          "blocker": "NO_BROWSER_IN_SCHEDULED_TASK"
+        },
+        "whatsapp_groups": {
+          "attempted": false,
+          "reason": "Requires browser clipboard paste. Not available in VM scheduled task.",
+          "blocker": "NO_BROWSER_IN_SCHEDULED_TASK"
+        }
+      },
+      "channels_attempted": [],
+      "channels_successful": [],
+      "audience_size": 0,
+      "delivery_method": "none",
+      "errors": [
+        "image_files_not_in_vm: T2I assets on host macOS Downloads, inaccessible from sandbox",
+        "all_patients_cold_wednesday: Cold segment only receives content on Mondays",
+        "no_telegram_send_tool: bootstrap_telegram is setup-only, no message send capability in MCP",
+        "vm_sandbox_no_external_api: Documented architectural limitation",
+        "no_browser_in_scheduled_task: Chrome MCP unavailable in non-interactive context"
+      ],
+      "tier4_substitution": {
+        "attempted": false,
+        "reason": "Qualifying assets exist (6.0 score) but cannot be delivered due to multi-factor blockers. Retake queue asset (run-001-20260323) scores 2.0 — below threshold regardless."
+      },
+      "sli_impact": "No increment to successful_delivery_days. successful_delivery_days remains 0. This is Day 3 with zero channel deliveries.",
+      "recommendation": "CRITICAL — 3 days with zero deliveries. Root causes and actions needed: (1) COPY IMAGE FILES: Download T2I images from Higgsfield account or macOS Downloads into workspace so VM can access them. (2) ADD TELEGRAM SEND TOOL: bootstrap_telegram only sets up the bot — need a send_message / send_photo MCP tool to actually post to channels. (3) PATIENT IDENTIFIERS: Roster returns names but no telegram_id / whatsapp_id — these must be populated in patient profiles. (4) INTERACTIVE SESSION: Until VM limitations are resolved, distribution requires an interactive Cowork session with Chrome MCP for browser-based posting. (5) COLD SEGMENT: All 48 patients have zero sessions — consider an initial welcome broadcast exempt from Monday-only rule to establish engagement baseline.",
+      "logged_by": "scheduled-task lv-geo-content-distribute",
+      "logged_at": "2026-03-25T09:15:00+08:00"
+    },
+    {
+      "distribution_id": "social-evening-002-20260325",
+      "scheduled_time": "2026-03-25T19:00:00+08:00",
+      "task": "lv-geo-social-evening",
+      "status": "NO_SOCIAL_ASSET_TODAY",
+      "precondition_check": {
+        "quality_gate_passed": true,
+        "qualifying_assets": [
+          {
+            "run_id": "run-eterna-002-20260324",
+            "tenant": "eterna-science",
+            "type": "T2I",
+            "score": 6.0,
+            "format": "9:16"
+          },
+          {
+            "run_id": "run-magfield-003-20260324",
+            "tenant": "dr-magfield",
+            "type": "T2I",
+            "score": 6.0,
+            "format": "9:16"
+          }
+        ],
+        "prior_channel_delivery_today": false,
+        "prior_channel_delivery_detail": "dist-001-20260325 status is DISTRIBUTION_BLOCKED_MULTI_FACTOR — zero channels received delivery. Image files not accessible in VM, all patients cold on Wednesday, no Telegram send tool, VM sandbox limitations. No asset was successfully delivered to any channel today.",
+        "vertical_format_ok": true,
+        "precondition_2_result": "FAIL — required delivered-to-channel prior to evening upload; none found",
+        "verdict": "SKIP — precondition #2 not met"
+      },
+      "reason": "Qualifying assets exist (2x 6.0 score, 9:16 format) but distribution pre-condition not met: no asset was successfully delivered to any channel earlier today (March 25). Morning distribution (dist-001-20260325) was blocked by multi-factor issues: image files on host macOS not in VM, all patients cold on Wednesday, no Telegram send tool, VM sandbox API limitations. Per pipeline policy, social upload requires prior successful channel delivery as prerequisite. Skipping Instagram Reels and TikTok upload for 2026-03-25.",
+      "channels_attempted": [],
+      "channels_successful": [],
+      "instagram_reels": {
+        "attempted": false,
+        "reason": "Pre-condition #2 not met. Additionally, Chrome MCP not available in scheduled task context."
+      },
+      "tiktok": {
+        "attempted": false,
+        "reason": "Pre-condition #2 not met. Additionally, Chrome MCP not available in scheduled task context."
+      },
+      "retry_note": "Same blockers as yesterday (social-evening-001-20260324). This is now Day 2 of consecutive social upload skips. Resolution requires: (1) Copy image files into VM workspace or mount host Downloads, (2) Execute morning distribution successfully in interactive Cowork session first, (3) Then re-run evening social upload. Alternatively, perform manual Instagram/TikTok uploads from host macOS using the prepared captions in run-eterna-002-20260324 and run-magfield-003-20260324.",
+      "sli_impact": "No SLI increment. successful_delivery_days remains 0. Day 3 overall, Day 2 consecutive social evening skip.",
+      "logged_by": "scheduled-task lv-geo-social-evening",
+      "logged_at": "2026-03-25T19:00:00+08:00"
+    },
+    {
+      "dispatch_id": "dispatch-20260326",
+      "date": "2026-03-26",
+      "day": "Thursday",
+      "tenant_primary": "eterna-science",
+      "topic_primary": "PEMF Therapy — Cellular Regeneration & Pain Relief",
+      "variant_primary": "conversational",
+      "tenant_secondary": "dr-magfield",
+      "topic_secondary": "Desk Worker Neck & Shoulder Tension (C5-C7)",
+      "variant_secondary": "empathetic",
+      "status": "DISPATCH_READY",
+      "prompt_hash_primary": "pemf-cellular-regen-conv-20260326",
+      "prompt_hash_secondary": "desk-neck-c5c7-empath-20260326",
+      "logged_by": "scheduled-task lv-geo-content-daily (pipeline-planner)",
+      "logged_at": "2026-03-26T08:55:00+08:00"
+    }
+  ],
+  "sli_tracking_updated": "2026-03-27T21:15:00+08:00",
+  "latest_plan": {
+    "plan_id": "plan-001-20260327",
+    "date": "2026-03-27",
+    "phase": "PLAN",
+    "day_of_week": "Friday (5)",
+    "tenant": "dr-magfield",
+    "engine": "higgsfield-seedream-4.5",
+    "quality_gate": "PASSED",
+    "knowledge_units": 67,
+    "practice_rules": 49,
+    "evidence_strength": 0.355,
+    "average_quality_score": 0.582,
+    "auto_distribute_threshold_met": false,
+    "auto_distribute_reason": "evidence_strength 0.355 < 0.8 AND quality_score 0.582 < 0.85 (not 4.0/5.0 scale — this system uses 0-1)",
+    "hold_status": "pending",
+    "distribute_at": "09:15",
+    "sli_attempt": 6,
+    "assets_staged": [
+      "text_post",
+      "visual_prompt",
+      "audio",
+      "llms_txt",
+      "json_ld"
+    ],
+    "geo_publish_result": {
+      "status": "QUEUED",
+      "knowledge_units": 67,
+      "crystallized_rules": 49,
+      "demographic_variants": [
+        "direct",
+        "harmonious",
+        "formal"
+      ],
+      "estimated_articles": 201,
+      "force_regenerate": false
+    },
+    "audio_result": {
+      "status": "SUCCESS",
+      "note": "generate_speech now working — MiniMax TTS resolved since last SLI check",
+      "url": "https://minimax-algeng-chat-tts-us.oss-us-east-1.aliyuncs.com/audio%2Ftts-20260327211348-qjMApNJU.mp3",
+      "duration_note": "approx 45-60 seconds"
+    },
+    "content_calendar_theme": "Friday = Client/Lifestyle (sessions, testimonials)",
+    "text_post": {
+      "variant": "harmonious",
+      "platform": "telegram",
+      "content": "🌀 DR MAGfield — Recovery That Moves With You\n\nGolfers who train hard deserve recovery that matches. At DR MAGfield, our 3-in-1 therapy — Heat + Magnetic Vortex (旋磁疗法) + Vibration — works while you rest.\n\n✅ Relieves L4-L5 rotational stress\n✅ Eases shoulder impingement\n✅ Reduces hip flexor tightness\n✅ 20-30 minute sessions between rounds\n\nProfessor Wang Shijie's rotational magnetic therapy, now at Malaysia's first Golf Club bio-energetic therapy lounge.\n\n📍 KRPM Experience Lounge, Sungai Buloh\n📲 Book with Arie Ong — WhatsApp / AI assessment available\n\nTurn Pain into Pure Performance. 🏌️\n\n#DrMAGfield #MagneticVortex #旋磁疗法 #KRPM #GolfersHealth #PainAndPerformance #LongevityValley #SungaiBuloh",
+      "bilingual_note": "Add Mandarin caption block for second send: 旋转磁场疗法，专为高尔夫球手而设计。在KRPM体验馆预约Arie Ong，开启您的康复之旅。"
+    },
+    "visual_prompt": {
+      "engine": "higgsfield-seedream-4.5",
+      "theme": "Client/Lifestyle — Friday rotation",
+      "prompt": "A satisfied patient in their 50s, wearing casual golf attire, reclining comfortably on the DR MAGfield therapy bed at the KRPM Experience Lounge. Warm golden ambient lighting. DR MAGfield spiral vortex logo on dark slate wall, sharp and legible. Patient's face shows peaceful relief and comfort. Subtle golden energy waves radiating from therapy bed. Brand colors: Slate #2D3748, Warm Gold #C9A96E, Sage #7A9A7E accents. 9:16 vertical format. Premium Malaysian wellness atmosphere. Avoid: distorted faces, extra limbs, text warping, harsh clinical lighting, static composition.",
+      "execution_note": "Requires interactive Cowork session with Chrome MCP to Higgsfield. VM sandbox cannot reach higgsfield.ai."
+    },
+    "previous_day_result": {
+      "date": "2026-03-26",
+      "quality_score": 0.582,
+      "route_decision": "route-to-expert",
+      "holmes_anomalies": [
+        "weak_evidence",
+        "rule_ignored",
+        "incomplete_evidence_use"
+      ],
+      "delivery_status": "no_channel_delivery"
+    },
+    "telegram_notification": {
+      "attempted": true,
+      "result": "FAILED",
+      "exit_code": 56,
+      "reason": "VM sandbox cannot reach external APIs (api.telegram.org). Architectural limitation — consistent across all scheduled task runs.",
+      "fallback": "Notification logged here. Keith to check pipeline_log.json in next interactive session."
+    },
+    "blockers": [
+      "telegram_api_unreachable: VM sandbox exit code 56 — cannot notify Keith",
+      "higgsfield_unreachable: T2I visual generation requires interactive Cowork session",
+      "auto_distribute_threshold_not_met: evidence_strength 0.355 below required 0.8"
+    ],
+    "logged_by": "scheduled-task lv-geo-content-daily (PLAN phase)",
+    "logged_at": "2026-03-27T21:15:00+08:00"
+  },
+  "latest_distribution": {
+    "distribution_id": "dist-001-20260327",
+    "scheduled_time": "2026-03-27T10:45:00+08:00",
+    "task": "lv-geo-content-distribute",
+    "day": "Friday",
+    "active_tenant": "dr-magfield",
+    "status": "SKIPPED_DEAD_END",
+    "reason": "DE-1 confirmed: curl → HTTP 000. No morning dispatch today (last: 2026-03-26). Distribution task DISABLED per pipeline v4.0 auto-prune. Day 5 with zero deliveries.",
+    "telegram_api_test": "HTTP 000 (exit 56)",
+    "recommendation": "Interactive Cowork session with Chrome MCP remains the only viable distribution path.",
+    "logged_at": "2026-03-27T10:45:00+08:00"
+  }
+}
